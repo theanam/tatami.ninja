@@ -128,6 +128,13 @@ export function useEditorKeyboard(opts: { readOnly: boolean; onSave?(saveAs: boo
         } else if (k === 'escape') s.setSim({ active: false, playing: false });
         return;
       }
+      if (mod && k === 'g') {
+        e.preventDefault();
+        if (opts.readOnly) return;
+        if (e.shiftKey) s.ungroupSelected();
+        else s.groupSelected();
+        return;
+      }
       if (mod && k === 'd') {
         e.preventDefault();
         if (!opts.readOnly) s.duplicateSelected();

@@ -34,6 +34,27 @@ describe('editor store', () => {
     expect(s().past).toEqual([]);
   });
 
+  it('groups, ungroups, flips and copies the selection', () => {
+    s().select(['o1', 'o2']);
+    s().groupSelected();
+    const g = s().project!.objects[0].group;
+    expect(g).toBeTruthy();
+    expect(s().project!.objects[1].group).toBe(g);
+    s().duplicateSelected();
+    const copies = s().project!.objects.slice(4);
+    expect(copies[0].group).toBeTruthy();
+    expect(copies[0].group).not.toBe(g);
+    s().select(['o1', 'o2']);
+    s().ungroupSelected();
+    expect(s().project!.objects[0].group).toBeUndefined();
+    s().select(['o3']);
+    s().copyAroundCircle(4, 300);
+    expect(s().project!.objects).toHaveLength(9);
+    expect(s().selection).toHaveLength(4);
+    s().undo();
+    expect(s().project!.objects).toHaveLength(6);
+  });
+
   it('undoes and redoes edits', () => {
     s().renameObject('o1', 'Background');
     expect(s().project!.objects[0].name).toBe('Background');

@@ -95,6 +95,8 @@ export interface StitchObject {
   exit?: Pt | null;
   /** Present on lettering objects; geometry holds the computed glyph outlines. */
   text?: TextSpec;
+  /** Objects sharing a group id select and move together. */
+  group?: string;
 }
 
 export interface Thread {

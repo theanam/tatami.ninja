@@ -151,6 +151,10 @@
 .wh-grid label { display: flex; flex-direction: column; gap: 6px; }
 .wh-grid .num { height: 34px; font-size: var(--sb-fs-base); }
 .tall-btn { height: 38px; font-size: var(--sb-fs-page); }
+.icon-row { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.icon-sep { width: 1px; height: 18px; background: var(--sb-border-subtle); margin: 0 4px; }
+.copy-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 32px; align-items: center; gap: 6px; }
+.copy-row .rc { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .bool-row { display: flex; flex-direction: column; gap: 6px; }
 .bool-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .backdrop-box { border-top: 1px solid var(--sb-border-subtle); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { alignObjects, circleCopies, distributeObjects, flipObject, gridCopies, type AlignTo, type FlipAxis } from '../model/arrange';
 import { booleanAreas, offsetAreas, type BoolOp } from '../engine/clip';
 import { areasOf, unionBounds, type Area } from '../engine/geom';
 import type { Warning } from '../engine/warnings';
@@ -140,6 +141,13 @@ export interface EditorState {
   translateSelected(dx: number, dy: number, key?: string): void;
   scaleSelected(sx: number, sy: number, key?: string): void;
   rotateSelected(deg: number): void;
+  flipSelected(axis: FlipAxis): void;
+  alignSelected(to: AlignTo): void;
+  distributeSelected(axis: 'horizontal' | 'vertical'): void;
+  groupSelected(): void;
+  ungroupSelected(): void;
+  copyAroundCircle(count: number, radius: number): void;
+  copyInGrid(rows: number, cols: number, gapX: number, gapY: number): void;
   scaleToFitHoop(): void;
   autoOrderByColor(): void;
   convertToSatin(ids: string[], width: number): void;
@@ -332,9 +340,13 @@ export const useEditor = create<EditorState>((set, get) => {
       const { project, selection } = get();
       if (!project || !selection.length) return;
       const sel = new Set(selection);
+      const regroup = new Map<string, string>();
       const copies = project.objects
         .filter((o) => sel.has(o.id))
-        .map((o) => ({ ...translateObject(o, 50, 50), id: newId('o'), name: `${o.name} copy`, locked: false }));
+        .map((o) => {
+          if (o.group && !regroup.has(o.group)) regroup.set(o.group, newId('g'));
+          return { ...translateObject(o, 50, 50), id: newId('o'), name: `${o.name} copy`, locked: false, group: o.group ? regroup.get(o.group) : undefined };
+        });
       get().addObjects(copies);
     },
 
@@ -407,6 +419,59 @@ export const useEditor = create<EditorState>((set, get) => {
       const b = objectsBounds(project.objects.filter((o) => selection.includes(o.id)));
       if (!b) return;
       mapSelected(selection, (o) => rotateObject(o, deg, (b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2));
+    },
+
+    flipSelected(axis) {
+      const { project, selection } = get();
+      if (!project) return;
+      const b = objectsBounds(project.objects.filter((o) => selection.includes(o.id)));
+      if (!b) return;
+      mapSelected(selection, (o) => flipObject(o, axis, (b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2));
+    },
+
+    alignSelected(to) {
+      const { project } = get();
+      if (!project) return;
+      const objs = selectedObjects(get()).filter(editable);
+      if (objs.length) get().replaceObjects(alignObjects(objs, to, project.hoop));
+    },
+
+    distributeSelected(axis) {
+      const objs = selectedObjects(get()).filter(editable);
+      if (objs.length >= 3) get().replaceObjects(distributeObjects(objs, axis));
+    },
+
+    groupSelected() {
+      const sel = new Set(get().selection);
+      if (sel.size < 2) return;
+      const g = newId('g');
+      get().update((p) => ({ ...p, objects: p.objects.map((o) => (sel.has(o.id) ? { ...o, group: g } : o)) }));
+    },
+
+    ungroupSelected() {
+      const sel = new Set(get().selection);
+      get().update((p) => {
+        if (!p.objects.some((o) => sel.has(o.id) && o.group)) return p;
+        return { ...p, objects: p.objects.map((o) => (sel.has(o.id) && o.group ? { ...o, group: undefined } : o)) };
+      });
+    },
+
+    copyAroundCircle(count, radius) {
+      const objs = selectedObjects(get());
+      const copies = circleCopies(objs, Math.round(count), radius);
+      if (copies.length) {
+        get().addObjects(copies);
+        set({ selection: [...objs.map((o) => o.id), ...copies.map((o) => o.id)] });
+      }
+    },
+
+    copyInGrid(rows, cols, gapX, gapY) {
+      const objs = selectedObjects(get());
+      const copies = gridCopies(objs, Math.round(rows), Math.round(cols), gapX, gapY);
+      if (copies.length) {
+        get().addObjects(copies);
+        set({ selection: [...objs.map((o) => o.id), ...copies.map((o) => o.id)] });
+      }
     },
 
     scaleToFitHoop() {

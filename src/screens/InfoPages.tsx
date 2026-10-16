@@ -70,6 +70,8 @@ const SHORTCUTS: [string, string][] = [
   ['⌘/Ctrl Z · ⇧⌘/Ctrl Z', 'Undo · Redo'],
   ['Delete / Backspace', 'Delete the selected objects'],
   ['⌘/Ctrl D', 'Duplicate the selection'],
+  ['⌘/Ctrl G', 'Group the selection (⇧ to ungroup)'],
+  ['⌘/Ctrl S / O', 'Save / open a .xtatami file (⇧⌘S: save as)'],
   ['Arrow keys', 'Nudge 0.1 mm (Shift: 1 mm)'],
   ['Space + drag, or middle mouse', 'Pan the canvas'],
   ['⌘/Ctrl + scroll, + / −', 'Zoom'],

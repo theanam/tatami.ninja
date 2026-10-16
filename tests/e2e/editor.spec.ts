@@ -305,3 +305,20 @@ test.describe('saving and opening .xtatami files', () => {
     expect(saved.objects).toHaveLength(4);
   });
 });
+
+test('arrange: group, flip, align and arranged copies', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').first().click();
+  const arrange = page.getByRole('region', { name: 'Arrange' }).or(page.locator('section.arrange'));
+  await expect(arrange).toBeVisible();
+  await page.getByRole('button', { name: 'Flip horizontally' }).click();
+  await page.getByRole('button', { name: 'Align left' }).click();
+  await page.getByRole('button', { name: 'Copy around a circle' }).click();
+  await expect(page.locator('.seq-list .row')).toHaveCount(9);
+  await page.keyboard.press('ControlOrMeta+g');
+  await expect(page.getByRole('button', { name: 'Ungroup (⇧⌘G)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Copy in a grid' }).click();
+  await expect(page.locator('.seq-list .row')).toHaveCount(9 + 6 * 5);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.locator('.seq-list .row')).toHaveCount(9);
+});

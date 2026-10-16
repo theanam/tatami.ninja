@@ -118,7 +118,7 @@ test.describe('drawing tools', () => {
     const c = await canvasCenter(page);
     await page.mouse.click(c.x, c.y);
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('toolbar')).toHaveCount(0);
+    await expect(page.locator('.canvas-cell').getByRole('toolbar')).toHaveCount(0);
     const toolbar = page.getByRole('region', { name: 'Properties' }).getByRole('group', { name: 'Lettering' });
     await toolbar.getByRole('group', { name: 'Baseline' }).getByRole('button', { name: 'Arc ↑' }).click();
     await expect(toolbar.getByLabel('Arc radius in millimetres')).toBeVisible();

@@ -8,6 +8,7 @@ import { saveDesign } from '../../storage/projectFile';
 import { useEditor } from '../../store/editor';
 import { NotFound } from '../NotFound';
 import { openFromDisk, persistOpened, pickStitchFile, projectFromFile, takePendingTrace, type Opened } from '../actions';
+import { ArrangePanel } from './ArrangePanel';
 import { AutoDigitizeDialog } from './AutoDigitizeDialog';
 import { BackdropPanel } from './BackdropPanel';
 import { Canvas } from './Canvas';
@@ -190,6 +191,7 @@ function EditorShell() {
             {project.backdrop && <BackdropPanel onTrace={() => s.openTracer(project.backdrop?.dataUrl ?? null)} onReplace={pickImage} />}
             <ToolOptions />
             <PropertiesPanel readOnly={readOnly} />
+            <ArrangePanel readOnly={readOnly} />
             <DesignSection />
           </aside>
         )}

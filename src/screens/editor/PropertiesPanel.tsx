@@ -430,11 +430,7 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
           </div>
         )}
         <div className="bool-row">
-          <span className="prop-label">Arrange</span>
           <div className="bool-btns">
-            <button className="btn small" onClick={() => s.rotateSelected(90)}>
-              Rotate 90°
-            </button>
             <button className="btn small" onClick={() => s.duplicateSelected()}>
               Duplicate
             </button>

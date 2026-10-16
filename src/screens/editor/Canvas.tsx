@@ -1,3 +1,4 @@
+import { withGroups } from '../../model/arrange';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { geometryBounds, type P } from '../../engine/geom';
 import { MAX_OBJECT_SIZE } from '../../engine/plan';
@@ -509,12 +510,13 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         const hit = hitTest(project, wp, tol);
         if (hit) {
           let ids = selection;
+          const members = withGroups(project.objects, [hit.id]);
           if (e.shiftKey || e.metaKey || e.ctrlKey) {
-            s.select([hit.id], true);
+            s.select(members, true);
             ids = useEditor.getState().selection;
           } else if (!selection.includes(hit.id)) {
-            s.select([hit.id]);
-            ids = [hit.id];
+            s.select(members);
+            ids = members;
           }
           // Snapshot the objects being dragged; every move is computed from this, so fast
           // pointer events can never apply the same offset twice.
@@ -690,7 +692,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
             return b && boundsIntersect(b, r);
           })
           .map((o) => o.id);
-        s.select(ids, drag.additive);
+        s.select(withGroups(project.objects, ids), drag.additive);
       }
     } else if (drag.kind === 'shape') {
       commitObject(objectFromShape(shapeKind, toPt(drag.start), toPt(drag.end), ensureActiveThread(), project.objects.length + 1));
