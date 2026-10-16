@@ -213,7 +213,7 @@ export function SimPanel({ plan, cmd }: { plan: StitchPlan; cmd: number }) {
           <div className="meta">Est. sew time</div>
           <div className="mono run-val">{Math.max(1, Math.round(sewMinutes(plan.stitchCount, spm)))} min</div>
         </div>
-        <p className="meta run-note">Sew-time estimate assumes {spm} stitches per minute. Change the speed in the Design panel.</p>
+        <p className="meta run-note">Sew-time estimate assumes {spm} stitches per minute.</p>
       </section>
     </aside>
   );

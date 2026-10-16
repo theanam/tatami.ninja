@@ -91,14 +91,15 @@ test.describe('canvas behaviour', () => {
 
   test('grid toggles and snap-to-grid lands on grid lines', async ({ page }) => {
     await rectDesign(page);
-    const gridBtn = page.getByRole('button', { name: 'Show grid (G)' });
-    await expect(gridBtn).toHaveAttribute('aria-pressed', 'true');
+    const design = page.getByRole('region', { name: 'Design' });
+    const gridSwitch = design.getByRole('switch', { name: 'Show grid' });
+    await expect(gridSwitch).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('g');
-    await expect(gridBtn).toHaveAttribute('aria-pressed', 'false');
+    await expect(gridSwitch).toHaveAttribute('aria-checked', 'false');
     await page.keyboard.press('g');
-    await page.getByLabel('Grid size').selectOption('100'); // 10 mm
-    await page.getByRole('button', { name: 'Smart snap to objects and hoop' }).click(); // off: pure grid
-    await page.getByRole('button', { name: 'Snap to grid' }).click();
+    await design.getByLabel('Grid size').selectOption('100'); // 10 mm
+    await design.getByRole('button', { name: 'Objects & hoop' }).click(); // smart snap off: pure grid
+    await design.getByRole('button', { name: 'Grid', exact: true }).click(); // snap to grid on
     const box = (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
     await page.mouse.move(box.x + 10, box.y + 10);
     await page.mouse.down();
@@ -117,8 +118,8 @@ test.describe('canvas behaviour', () => {
     expect(Math.abs(mmX - Math.round(mmX / 10) * 10)).toBeLessThan(0.6);
     expect(Math.abs(mmY - Math.round(mmY / 10) * 10)).toBeLessThan(0.6);
     // Restore defaults for other tests in this browser profile.
-    await page.getByRole('button', { name: 'Snap to grid' }).click();
-    await page.getByRole('button', { name: 'Smart snap to objects and hoop' }).click();
+    await design.getByRole('button', { name: 'Grid', exact: true }).click();
+    await design.getByRole('button', { name: 'Objects & hoop' }).click();
   });
 
   test('smart snap aligns to the hoop center and shows a guide', async ({ page }) => {

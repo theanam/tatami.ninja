@@ -5,53 +5,48 @@ import { resolveParams } from '../../engine/objects';
 import { areasOf } from '../../engine/geom';
 import { objectsBounds, satinWidth } from '../../model/transform';
 import type { StitchObject, StitchType, UnderlayType } from '../../model/types';
-import { fmtLen, fromDisplay, toDisplay, type Units } from '../../model/units';
-import { FABRICS, getFabric, HOOPS, hoopLabel, MACHINES, UNDERLAY_OPTIONS } from '../../presets';
+import { fmtLen, fromDisplay, toDisplay } from '../../model/units';
+import { FABRICS, HOOPS, hoopLabel, MACHINES, UNDERLAY_OPTIONS } from '../../presets';
+import { ThreadPicker } from '../../components/ThreadPicker';
+import { LenRow } from './PanelRows';
+import { gridSizes } from './snap';
+import { LetteringSection } from './TextTools';
 import { selectedObjects, useEditor } from '../../store/editor';
 
-/** A length parameter shown in project units, stored in 0.1 mm. */
-function LenRow({
-  label,
-  value,
-  min,
-  max,
-  step,
-  units,
-  onChange,
-  name,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  units: Units;
-  onChange(v: number): void;
-  name: string;
-}) {
-  const d = (v: number) => toDisplay(v, units);
-  return (
-    <ParamRow
-      label={label}
-      value={d(value)}
-      min={d(min)}
-      max={d(max)}
-      step={units === 'mm' ? step / 10 : step / 254}
-      unit={units}
-      decimals={units === 'mm' ? (step < 1 ? 2 : step < 10 ? 1 : 0) : 3}
-      numLabel={`${name} in ${units === 'mm' ? 'millimetres' : 'inches'}`}
-      onChange={(v) => onChange(fromDisplay(v, units))}
-    />
-  );
-}
-
+/** Settings of the selected object(s); nothing when nothing is selected. */
 export function PropertiesPanel({ readOnly }: { readOnly: boolean }) {
   const project = useEditor((s) => s.project)!;
   const selection = useEditor((s) => s.selection);
   const sel = selectedObjects({ project, selection });
-  if (sel.length === 0) return <DesignSettings readOnly={readOnly} />;
+  if (sel.length === 0) return null;
   if (sel.length > 1) return <MultiSelection objects={sel} readOnly={readOnly} />;
   return <ObjectProperties o={sel[0]} readOnly={readOnly} />;
+}
+
+/** Options of the active drawing tool (only tools that have any). */
+export function ToolOptions() {
+  const tool = useEditor((s) => s.tool);
+  const shapeKind = useEditor((s) => s.shapeKind);
+  if (tool !== 'shapes') return null;
+  return (
+    <section className="props tool-options" aria-labelledby="toolh">
+      <div className="panel-head inline">
+        <h2 id="toolh" className="label-caps">
+          Shapes
+        </h2>
+      </div>
+      <SegmentedControl<'rect' | 'ellipse'>
+        label="Shape"
+        grid
+        value={shapeKind}
+        onChange={(k) => useEditor.getState().setShapeKind(k)}
+        options={[
+          { value: 'rect', label: 'Rectangle' },
+          { value: 'ellipse', label: 'Ellipse' },
+        ]}
+      />
+    </section>
+  );
 }
 
 function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean }) {
@@ -60,7 +55,6 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
   const s = useEditor.getState();
   const units = project.units;
   const r = resolveParams(o, project.fabricPreset);
-  const fabric = getFabric(project.fabricPreset);
   const closed = areasOf(o.geometry).length > 0;
   const ids = [o.id];
   const disabled = o.locked;
@@ -74,8 +68,7 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
           </h2>
           <span className="meta">{o.name}</span>
         </div>
-        <ThreadSelect ids={ids} value={o.thread} />
-        <p className="note">Opened from a stitch file, so stitches can be recolored and reordered but not reshaped.</p>
+        <ThreadRow ids={ids} value={o.thread} />
       </section>
     );
   }
@@ -98,7 +91,7 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
       </div>
       {disabled && (
         <p className="note locked-note">
-          <Icon name="lock-closed" small /> Locked. Unlock it in the Sequence list to edit.
+          <Icon name="lock-closed" small /> Locked
         </p>
       )}
       <fieldset disabled={disabled || readOnly} className="props-body">
@@ -109,17 +102,8 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
           options={types}
           onChange={(t) => s.setObjectType(ids, t)}
         />
-        {o.text && <LetteringNote o={o} />}
-        <div className="prop-grid two">
-          <label htmlFor="fab" className="prop-label">
-            Fabric
-          </label>
-          <Select id="fab" value={project.fabricPreset} options={FABRICS.map((f) => ({ value: f.id, label: f.name }))} onChange={(v) => s.setProjectFields({ fabricPreset: v })} />
-          <label htmlFor="thr" className="prop-label">
-            Thread
-          </label>
-          <ThreadSelect ids={ids} value={o.thread} id="thr" bare />
-        </div>
+        {o.text && <LetteringSection o={o} units={units} />}
+        <ThreadRow ids={ids} value={o.thread} />
         <div className="prop-grid">
           {o.type === 'tatami' && (
             <>
@@ -204,9 +188,6 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
             </div>
           </>
         )}
-        <p className="note">
-          Density, underlay and pull compensation come from the {fabric.name} preset.
-        </p>
         <button className="disclosure" aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
           <Icon name={advanced ? 'chevron-down' : 'chevron-right'} small />
           <span>
@@ -316,31 +297,12 @@ function SewPointRow({ o, which, label }: { o: StitchObject; which: 'entry' | 'e
   );
 }
 
-/** Lettering is edited on the canvas; the panel only points there. */
-function LetteringNote({ o }: { o: StitchObject }) {
-  return (
-    <div className="lettering-note">
-      <p className="note">
-        Lettering: double-click the text on the canvas (or press Enter) to type. Font, size, spacing and arc are in the toolbar above the text.
-      </p>
-      <button className="btn small" disabled={o.locked} onClick={() => useEditor.getState().setEditingText(o.id)}>
-        <Icon name="edit" small />
-        Edit text on canvas
-      </button>
-    </div>
-  );
-}
-
-function ThreadSelect({ ids, value, id, bare }: { ids: string[]; value: string; id?: string; bare?: boolean }) {
+function ThreadRow({ ids, value }: { ids: string[]; value: string | null }) {
   const threads = useEditor((st) => st.project!.threads);
-  const sel = (
-    <Select id={id} label="Thread" value={value} options={threads.map((t, i) => ({ value: t.id, label: `${i + 1} · ${t.name}` }))} onChange={(v) => useEditor.getState().setObjectThread(ids, v)} />
-  );
-  if (bare) return sel;
   return (
     <div className="prop-grid two">
       <span className="prop-label">Thread</span>
-      {sel}
+      <ThreadPicker threads={threads} value={value} onChange={(v) => useEditor.getState().setObjectThread(ids, v)} />
     </div>
   );
 }
@@ -410,7 +372,6 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
             />
           </label>
         </div>
-        <p className="note">Resizing re-generates stitches, so density stays the same at the new size.</p>
         {(tooWide || tooTall) && (
           <button className="btn pri block tall-btn" onClick={() => s.scaleToFitHoop()}>
             Scale to fit hoop ({fmtLen(tooWide ? project.hoop.width : project.hoop.height, units)} {units})
@@ -451,7 +412,7 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
             />
           </div>
         )}
-        <ThreadSelect ids={objects.map((o) => o.id)} value={objects[0].thread} />
+        <ThreadRow ids={objects.map((o) => o.id)} value={objects.every((o) => o.thread === objects[0].thread) ? objects[0].thread : null} />
         {closedCount >= 2 && (
           <div className="bool-row">
             <span className="prop-label">Combine shapes</span>
@@ -487,12 +448,14 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
   );
 }
 
-function DesignSettings({ readOnly }: { readOnly: boolean }) {
+/** Global settings for the whole design (never repeated per object). */
+export function DesignSection() {
   const project = useEditor((s) => s.project)!;
+  const grid = useEditor((s) => s.grid);
   const s = useEditor.getState();
   const hoopValue = HOOPS.some((h) => h.id === project.hoop.id) ? project.hoop.id : 'custom';
   return (
-    <section className="props" aria-labelledby="designh">
+    <section className="props design-section" aria-labelledby="designh">
       <div className="panel-head inline">
         <h2 id="designh" className="label-caps">
           Design
@@ -527,16 +490,8 @@ function DesignSettings({ readOnly }: { readOnly: boolean }) {
           <label htmlFor="fabric" className="prop-label">
             Fabric
           </label>
-          <Select
-            id="fabric"
-            value={project.fabricPreset}
-            disabled={readOnly && false}
-            options={FABRICS.map((f) => ({ value: f.id, label: f.name }))}
-            onChange={(v) => s.setProjectFields({ fabricPreset: v })}
-          />
-          <span className="prop-label" id="unitsl">
-            Units
-          </span>
+          <Select id="fabric" value={project.fabricPreset} options={FABRICS.map((f) => ({ value: f.id, label: f.name }))} onChange={(v) => s.setProjectFields({ fabricPreset: v })} />
+          <span className="prop-label">Units</span>
           <SegmentedControl
             label="Units"
             grid
@@ -552,8 +507,29 @@ function DesignSettings({ readOnly }: { readOnly: boolean }) {
             Speed
           </label>
           <NumberInput id="spm" label="Machine speed in stitches per minute" value={project.spm ?? 800} decimals={0} min={100} max={1500} unit="spm" onChange={(v) => s.setProjectFields({ spm: Math.round(v) })} />
+          <label htmlFor="gridsize" className="prop-label">
+            Grid
+          </label>
+          <div className="grid-row">
+            <Switch label="Show grid" checked={grid.show} onChange={(v) => s.setGrid({ show: v })} />
+            <Select
+              id="gridsize"
+              label="Grid size"
+              value={String(grid.size)}
+              options={gridSizes(project.units).map((g) => ({ value: String(g.value), label: g.label }))}
+              onChange={(v) => s.setGrid({ size: Number(v) })}
+            />
+          </div>
+          <span className="prop-label">Snap</span>
+          <div className="chips-row">
+            <button className="toggle-chip" aria-pressed={grid.snap} onClick={() => s.setGrid({ snap: !grid.snap })}>
+              Grid
+            </button>
+            <button className="toggle-chip" aria-pressed={grid.smart} onClick={() => s.setGrid({ smart: !grid.smart })}>
+              Objects &amp; hoop
+            </button>
+          </div>
         </div>
-        <p className="note">{getFabric(project.fabricPreset).note}</p>
       </div>
     </section>
   );

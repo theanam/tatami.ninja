@@ -94,6 +94,8 @@ export interface EditorState {
   /** Waiting for a canvas click to set an object's entry or exit point. */
   pickPoint: { id: string; which: 'entry' | 'exit' } | null;
   grid: GridPrefs;
+  /** Shapes tool: what a drag draws. */
+  shapeKind: 'rect' | 'ellipse';
   /** Lettering object whose text is being edited in place on the canvas. */
   editingTextId: string | null;
 
@@ -119,6 +121,7 @@ export interface EditorState {
   setPickPoint(p: EditorState['pickPoint']): void;
   setEditingText(id: string | null): void;
   setGrid(patch: Partial<GridPrefs>): void;
+  setShapeKind(k: 'rect' | 'ellipse'): void;
   setSewPoint(id: string, which: 'entry' | 'exit', pt: Pt | null): void;
 
   // Document operations
@@ -196,6 +199,7 @@ export const useEditor = create<EditorState>((set, get) => {
     pickPoint: null,
     editingTextId: null,
     grid: loadGridPrefs(),
+    shapeKind: 'rect',
 
     load(project) {
       set({
@@ -294,6 +298,7 @@ export const useEditor = create<EditorState>((set, get) => {
     setWarningsOpen: (warningsOpen) => set({ warningsOpen }),
     setSim: (s) => set({ sim: { ...get().sim, ...s } }),
     setPickPoint: (pickPoint) => set({ pickPoint }),
+    setShapeKind: (shapeKind) => set({ shapeKind }),
     setGrid(patch) {
       const grid = { ...get().grid, ...patch };
       set({ grid });

@@ -97,7 +97,7 @@ test.describe('drawing tools', () => {
     await expect(inline).toHaveCount(0);
     await expect(page.locator('.row', { hasText: '“Hello”' })).toBeVisible();
     // The right panel no longer holds a text field.
-    await expect(page.locator('.props').getByRole('textbox', { name: 'Text', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Properties' }).getByRole('textbox', { name: 'Text', exact: true })).toHaveCount(0);
     // Double-click to edit again; Escape restores the text.
     const box = (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
     await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
@@ -112,13 +112,14 @@ test.describe('drawing tools', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('lettering toolbar sets arc and size, and warns about tiny text', async ({ page }) => {
+  test('lettering settings live in the Properties panel (nothing floats) and warn about tiny text', async ({ page }) => {
     await newEmptyDesign(page);
     await page.keyboard.press('t');
     const c = await canvasCenter(page);
     await page.mouse.click(c.x, c.y);
     await page.keyboard.press('Enter');
-    const toolbar = page.getByRole('toolbar', { name: 'Lettering' });
+    await expect(page.getByRole('toolbar')).toHaveCount(0);
+    const toolbar = page.getByRole('region', { name: 'Properties' }).getByRole('group', { name: 'Lettering' });
     await toolbar.getByRole('group', { name: 'Baseline' }).getByRole('button', { name: 'Arc ↑' }).click();
     await expect(toolbar.getByLabel('Arc radius in millimetres')).toBeVisible();
     const h = toolbar.getByLabel('Letter height in millimetres');

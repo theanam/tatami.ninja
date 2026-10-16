@@ -12,7 +12,10 @@ test.describe('editor', () => {
       await expect(page.getByRole('group', { name: 'View' }).getByRole('button', { name: v })).toHaveAttribute('aria-pressed', 'true');
     }
     await page.locator('.row', { hasText: 'Badge fill' }).click();
-    await expect(page.locator('.props')).toContainText('Badge fill');
+    await expect(page.getByRole('region', { name: 'Properties' })).toContainText('Badge fill');
+    // Global settings are not repeated per object; they stay in the Design section.
+    await expect(page.getByRole('region', { name: 'Properties' }).getByText('Fabric', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Design' }).getByLabel('Fabric', { exact: true })).toBeVisible();
     const angle = page.getByLabel('Angle in degrees');
     await expect(angle).toHaveValue('45');
     await angle.fill('90');
@@ -36,7 +39,7 @@ test.describe('editor', () => {
     await page.getByRole('button', { name: 'Lock Star' }).click();
     await expect(page.getByRole('button', { name: 'Unlock Star' })).toBeVisible();
     await page.locator('.row', { hasText: 'Star' }).click();
-    await expect(page.getByText(/Locked\. Unlock it/)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Properties' }).getByText('Locked', { exact: true })).toBeVisible();
     // Move Border up with Alt+ArrowUp.
     await page.locator('.row', { hasText: 'Border' }).click();
     await page.keyboard.press('Alt+ArrowUp');
@@ -70,6 +73,23 @@ test.describe('editor', () => {
     await page.locator('.thread-chip', { hasText: 'Navy' }).click();
     // Navy, Gold, Navy (star), Gold: four color blocks now.
     await expect(page.locator('.block-head')).toHaveCount(4);
+  });
+
+  test('the thread picker in Properties shows thread colors and works with the keyboard', async ({ page }) => {
+    await openSample(page);
+    await page.locator('.row', { hasText: 'Star' }).click();
+    const picker = page.getByRole('region', { name: 'Properties' }).getByRole('button', { name: 'Thread: Gold' });
+    await expect(picker.locator('.swatch-dot')).toHaveCSS('background-color', 'rgb(212, 164, 58)');
+    await picker.click();
+    const list = page.getByRole('listbox', { name: 'Thread' });
+    await expect(list.getByRole('option')).toHaveCount(2);
+    await expect(list.getByRole('option', { name: /Navy/ }).locator('.swatch-dot')).toHaveCSS('background-color', 'rgb(36, 53, 122)');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('region', { name: 'Properties' }).getByRole('button', { name: 'Thread: Navy' })).toBeVisible();
+    // Multi-selection with different threads shows "Mixed".
+    await page.locator('.row', { hasText: 'Border' }).click({ modifiers: ['Shift'] });
+    await expect(page.getByRole('button', { name: 'Thread: mixed' })).toBeVisible();
   });
 
   test('threads can be edited and removed from the strip', async ({ page }) => {
@@ -213,7 +233,7 @@ test.describe('editor', () => {
       buffer: png,
     });
     const dialog = page.getByRole('dialog', { name: 'Trace image' });
-    await expect(dialog.getByText('Transparent areas are never stitched')).toBeVisible();
+    await expect(dialog.getByText('Transparent areas are not stitched.')).toBeVisible();
     await expect(dialog.getByText(/^2 objects: /)).toBeVisible();
     await expect(dialog.locator('.ad-palette .swatch-dot.removed')).toHaveCount(0);
     await dialog.getByRole('button', { name: /^Add 2 objects/ }).click();

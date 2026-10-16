@@ -12,7 +12,7 @@ import { getFabric, hoopLabel } from '../../presets';
 import { buildPathCache, drawBlocks, fillFabric, partialBlocks } from '../../render/stitchRender';
 import { selectedObjects, useEditor } from '../../store/editor';
 import { Icon } from '../../components/Icon';
-import { IconButton, SegmentedControl, Spinner, toast } from '../../components/ui';
+import { IconButton, Spinner, toast } from '../../components/ui';
 import {
   angleFromDrag,
   boundsIntersect,
@@ -28,10 +28,10 @@ import {
   zoomAt,
   type View,
 } from './canvasMath';
-import { constrainSquare, objectFromPath, objectFromSatinClicks, objectFromShape, snap45, type PathTool, type ShapeKind } from './drawTools';
+import { constrainSquare, objectFromPath, objectFromSatinClicks, objectFromShape, snap45, type PathTool } from './drawTools';
 import { isTypingTarget } from './hooks';
-import { InlineTextEditor, TextToolbar } from './TextTools';
-import { gridSizes, snapLines, snapMove, snapPoint, type Guides, type SnapLines, type SnapOptions } from './snap';
+import { InlineTextEditor } from './TextTools';
+import { snapLines, snapMove, snapPoint, type Guides, type SnapLines, type SnapOptions } from './snap';
 import { ObjectArt } from './ObjectArt';
 
 type Drag =
@@ -174,7 +174,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const [draft, setDraft] = useState<Pt[]>([]);
   const [hover, setHover] = useState<P | null>(null);
   const [spaceDown, setSpaceDown] = useState(false);
-  const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
+  const shapeKind = useEditor((s) => s.shapeKind);
   const [measure, setMeasure] = useState<{ start: P; end: P } | null>(null);
   const [dropping, setDropping] = useState(false);
   const [startBlank, setStartBlank] = useState(() => blankChosen(project.id));
@@ -1107,36 +1107,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         {picking && <span className="chip boxed accent-chip">Click to set the {picking.which} point · Esc to cancel</span>}
       </div>
 
-      {tool === 'shapes' && !sim.active && (
-        <div className="canvas-toolopts">
-          <SegmentedControl<ShapeKind>
-            label="Shape"
-            value={shapeKind}
-            onChange={setShapeKind}
-            options={[
-              { value: 'rect', label: 'Rectangle' },
-              { value: 'ellipse', label: 'Ellipse' },
-            ]}
-          />
-          <span className="meta">Drag on the canvas · Shift for square / circle</span>
-        </div>
-      )}
-      {(tool === 'pen' || tool === 'run' || tool === 'fill' || tool === 'satin' || tool === 'applique' || tool === 'lettering' || tool === 'node' || tool === 'measure') &&
-        !sim.active && (
-          <div className="canvas-toolopts hint-only">
-            <span className="meta">{TOOL_HINTS[tool]}</span>
-          </div>
-        )}
 
-      {single?.text && !sim.active && !readOnly && !single.locked && xf?.phase !== 'drag' && (
-        <TextToolbar
-          o={single}
-          v={v}
-          units={project.units}
-          editing={editingTextId === single.id}
-          onEdit={() => useEditor.getState().setEditingText(single.id)}
-        />
-      )}
       {editingTextId && !sim.active && (() => {
         const o = project.objects.find((x) => x.id === editingTextId);
         if (!o?.text) return null;
@@ -1193,18 +1164,6 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         </div>
       )}
 
-      <div className={`grid-ctl${sim.active ? ' top' : ''}`} role="group" aria-label="Grid and snapping">
-        <IconButton icon="grid" label="Show grid" shortcut="G" size="xs" tipSide="top" aria-pressed={grid.show} className={grid.show ? 'toggle-on' : ''} onClick={() => useEditor.getState().setGrid({ show: !grid.show })} />
-        <select className="grid-size" aria-label="Grid size" value={grid.size} onChange={(e) => useEditor.getState().setGrid({ size: Number(e.target.value) })}>
-          {gridSizes(project.units).map((g) => (
-            <option key={g.value} value={g.value}>
-              {g.label}
-            </option>
-          ))}
-        </select>
-        <IconButton icon="magnet" label="Snap to grid" size="xs" tipSide="top" aria-pressed={grid.snap} className={grid.snap ? 'toggle-on' : ''} onClick={() => useEditor.getState().setGrid({ snap: !grid.snap })} />
-        <IconButton icon="guides" label="Smart snap to objects and hoop" hint="Hold ⌘/Ctrl to skip" size="xs" tipSide="top" aria-pressed={grid.smart} className={grid.smart ? 'toggle-on' : ''} onClick={() => useEditor.getState().setGrid({ smart: !grid.smart })} />
-      </div>
       <div className={`zoom-ctl${sim.active ? ' top' : ''}`}>
         <IconButton icon="zoom-out" label="Zoom out" size="xs" onClick={() => useEditor.getState().setZoom(zoom / 1.25)} tipSide="top" />
         <span className="mono zoom-val">{Math.round(zoom * 100)}%</span>
@@ -1214,15 +1173,4 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
     </div>
   );
 }
-
-const TOOL_HINTS: Record<string, string> = {
-  pen: 'Click to add points · click the first point to close a fill · double-click or Enter to finish a line',
-  run: 'Click to add points · double-click or Enter to finish',
-  fill: 'Click to add points · Enter or click the first point to close',
-  applique: 'Click the outline of the patch · Enter to close',
-  satin: 'Click left and right rail points in turn · Enter to finish',
-  lettering: 'Click where the text should go',
-  node: 'Drag points · double-click an edge to add one · Alt-click to delete',
-  measure: 'Drag to measure',
-};
 

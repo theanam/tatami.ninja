@@ -1,15 +1,16 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { NumberInput, SegmentedControl, Select, Spinner } from '../../components/ui';
+import { SegmentedControl, Select, Spinner } from '../../components/ui';
 import { geometryBounds } from '../../engine/geom';
 import { ensureCssFont, fontDisplayName, isGoogleFont, loadCatalog, nearestWeight, type FontEntry } from '../../importers/fontCatalog';
 import { fontMetrics, loadSpecFont } from '../../importers/lettering';
 import type { StitchObject, TextSpec } from '../../model/types';
-import { fromDisplay, toDisplay, type Units } from '../../model/units';
+import type { Units } from '../../model/units';
 import { useEditor } from '../../store/editor';
 import { toScreen, type View } from './canvasMath';
 import { FontPicker } from './FontPicker';
 import { applyTextSpec } from './textOps';
+import { LenRow } from './PanelRows';
 
 interface Metrics {
   unitsPerEm: number;
@@ -113,15 +114,13 @@ export function InlineTextEditor({ o, v, color, onDone }: { o: StitchObject; v: 
   );
 }
 
-/** Floating lettering controls above the selected text: font, weight, size, spacing, arc. */
-export function TextToolbar({ o, v, units, editing, onEdit }: { o: StitchObject; v: View; units: Units; editing: boolean; onEdit(): void }) {
+/** Lettering settings in the Properties panel: font, weight, size, spacing, arc. */
+export function LetteringSection({ o, units }: { o: StitchObject; units: Units }) {
   const spec = o.text!;
-  const ref = useRef<HTMLDivElement>(null);
   const fontBtn = useRef<HTMLButtonElement>(null);
   const [picker, setPicker] = useState<DOMRect | null>(null);
   const [busy, setBusy] = useState(false);
   const [catalog, setCatalog] = useState<FontEntry[] | null>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const live = useLiveFont(spec);
 
   useEffect(() => {
@@ -131,22 +130,6 @@ export function TextToolbar({ o, v, units, editing, onEdit }: { o: StitchObject;
       alive = false;
     };
   }, []);
-
-  const b = geometryBounds(o.geometry);
-  const top = b ? toScreen(v, [b.minX, b.minY]) : toScreen(v, [spec.x, spec.y]);
-  const bottom = b ? toScreen(v, [b.maxX, b.maxY]) : top;
-  const cx = (top[0] + bottom[0]) / 2;
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    const parent = el?.parentElement;
-    if (!el || !parent) return;
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    const left = Math.max(8, Math.min(parent.clientWidth - w - 8, cx - w / 2));
-    const above = top[1] - h - 14;
-    setPos({ left, top: above > 40 ? above : Math.min(parent.clientHeight - h - 8, bottom[1] + 14) });
-  }, [cx, top[1], bottom[1], spec, catalog]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const apply = async (patch: Partial<TextSpec>, key?: string) => {
     setBusy(true);
@@ -162,95 +145,57 @@ export function TextToolbar({ o, v, units, editing, onEdit }: { o: StitchObject;
   const entry = catalog?.find((f) => f.id === spec.font);
   const weights = isGoogleFont(spec.font) ? entry?.weights ?? [spec.weight ?? 400] : [];
   const arcMode = spec.arc === 0 ? 'straight' : spec.arc > 0 ? 'up' : 'down';
-  const d = (x: number) => toDisplay(x, units);
+  const b = geometryBounds(o.geometry);
   const textWidth = b ? b.maxX - b.minX : 400;
 
   return (
-    <div
-      ref={ref}
-      className="text-toolbar"
-      role="toolbar"
-      aria-label="Lettering"
-      style={pos ?? { left: -9999, top: -9999 }}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <button
-        ref={fontBtn}
-        className="btn tt-font"
-        aria-haspopup="dialog"
-        aria-label={`Font: ${fontDisplayName(spec.font, catalog)}`}
-        onClick={() => setPicker(picker ? null : fontBtn.current!.getBoundingClientRect())}
-      >
-        <span style={{ fontFamily: live ? `'${live.css}'` : undefined }}>{fontDisplayName(spec.font, catalog)}</span>
-        {busy ? <Spinner size={12} /> : <Icon name="chevron-down" small />}
-      </button>
-      {weights.length > 1 && (
-        <div className="tt-weight">
-          <Select
-            label="Font weight"
-            value={String(spec.weight ?? nearestWeight(weights))}
-            options={weights.map((w) => ({ value: String(w), label: String(w) }))}
-            onChange={(w) => void apply({ weight: Number(w) })}
-          />
-        </div>
-      )}
-      <label className="tt-field" title="Letter height">
-        <Icon name="lettering" small />
-        <NumberInput
-          label="Letter height in millimetres"
-          value={d(spec.height)}
-          unit={units}
-          decimals={units === 'mm' ? 1 : 2}
-          min={d(30)}
-          max={d(1200)}
-          onChange={(x) => void apply({ height: fromDisplay(x, units) })}
-        />
-      </label>
-      <label className="tt-field" title="Letter spacing">
-        <span className="tt-glyph" aria-hidden="true">
-          A|A
-        </span>
-        <NumberInput
-          label="Letter spacing in millimetres"
-          value={d(spec.spacing)}
-          unit={units}
-          decimals={units === 'mm' ? 1 : 2}
-          min={d(-50)}
-          max={d(200)}
-          onChange={(x) => void apply({ spacing: fromDisplay(x, units) })}
-        />
-      </label>
-      <SegmentedControl
-        label="Baseline"
-        value={arcMode}
-        onChange={(m) => void apply({ arc: m === 'straight' ? 0 : (m === 'up' ? 1 : -1) * (Math.abs(spec.arc) || Math.max(400, Math.round(textWidth / 10) * 10)) }, 'arcmode')}
-        options={[
-          { value: 'straight', label: 'Straight' },
-          { value: 'up', label: 'Arc ↑' },
-          { value: 'down', label: 'Arc ↓' },
-        ]}
-      />
-      {spec.arc !== 0 && (
-        <label className="tt-field" title="Arc radius">
-          <span className="tt-glyph" aria-hidden="true">
-            r
-          </span>
-          <NumberInput
-            label="Arc radius in millimetres"
-            value={d(Math.abs(spec.arc))}
-            unit={units}
-            decimals={0}
-            min={d(150)}
-            max={d(3000)}
-            onChange={(x) => void apply({ arc: Math.sign(spec.arc) * fromDisplay(x, units) })}
-          />
-        </label>
-      )}
-      {!editing && (
-        <button className="btn tt-edit" onClick={onEdit} title="Edit text (double-click the text, or press Enter)">
-          <Icon name="edit" small />
-          Edit text
+    <div className="lettering" role="group" aria-label="Lettering">
+      <div className="prop-grid two">
+        <span className="prop-label">Font</span>
+        <button
+          ref={fontBtn}
+          className="btn tt-font"
+          aria-haspopup="dialog"
+          aria-label={`Font: ${fontDisplayName(spec.font, catalog)}`}
+          onClick={() => setPicker(picker ? null : fontBtn.current!.getBoundingClientRect())}
+        >
+          <span style={{ fontFamily: live ? `'${live.css}'` : undefined }}>{fontDisplayName(spec.font, catalog)}</span>
+          {busy ? <Spinner size={12} /> : <Icon name="chevron-down" small />}
         </button>
+        {weights.length > 1 && (
+          <>
+            <span className="prop-label">Weight</span>
+            <Select
+              label="Font weight"
+              value={String(spec.weight ?? nearestWeight(weights))}
+              options={weights.map((w) => ({ value: String(w), label: String(w) }))}
+              onChange={(w) => void apply({ weight: Number(w) })}
+            />
+          </>
+        )}
+      </div>
+      <div className="prop-grid">
+        <LenRow label="Height" name="Letter height" value={spec.height} min={30} max={1200} step={1} units={units} onChange={(v) => void apply({ height: v }, `h-${o.id}`)} />
+        <LenRow label="Spacing" name="Letter spacing" value={spec.spacing} min={-50} max={200} step={1} units={units} onChange={(v) => void apply({ spacing: v }, `sp-${o.id}`)} />
+      </div>
+      <div className="prop-grid two">
+        <span className="prop-label">Baseline</span>
+        <SegmentedControl
+          label="Baseline"
+          grid
+          value={arcMode}
+          onChange={(m) => void apply({ arc: m === 'straight' ? 0 : (m === 'up' ? 1 : -1) * (Math.abs(spec.arc) || Math.max(400, Math.round(textWidth / 10) * 10)) }, 'arcmode')}
+          options={[
+            { value: 'straight', label: 'Straight' },
+            { value: 'up', label: 'Arc ↑' },
+            { value: 'down', label: 'Arc ↓' },
+          ]}
+        />
+      </div>
+      {spec.arc !== 0 && (
+        <div className="prop-grid">
+          <LenRow label="Radius" name="Arc radius" value={Math.abs(spec.arc)} min={150} max={3000} step={10} units={units} onChange={(v) => void apply({ arc: Math.sign(spec.arc) * v }, `arc-${o.id}`)} />
+        </div>
       )}
       {picker && (
         <FontPicker

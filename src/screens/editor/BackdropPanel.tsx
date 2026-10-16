@@ -55,7 +55,6 @@ export function BackdropPanel({ onTrace, onReplace }: { onTrace(): void; onRepla
             Remove
           </button>
         </div>
-        <p className="note">Shown in Artwork and Objects. Unlock it to drag it into place.</p>
       </div>
     </section>
   );

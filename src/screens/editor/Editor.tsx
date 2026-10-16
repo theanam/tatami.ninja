@@ -13,7 +13,7 @@ import { BackdropPanel } from './BackdropPanel';
 import { Canvas } from './Canvas';
 import { ExportDialog } from './ExportDialog';
 import { useAutosave, useEditorKeyboard, useEngine } from './hooks';
-import { PropertiesPanel } from './PropertiesPanel';
+import { DesignSection, PropertiesPanel, ToolOptions } from './PropertiesPanel';
 import { RulerX, RulerY } from './Rulers';
 import { SequencePanel } from './SequencePanel';
 import { SimPanel, SimulatorBar, useSimulation } from './Simulator';
@@ -169,7 +169,9 @@ function EditorShell() {
           <aside aria-label="Sequence and properties" className="panel">
             <SequencePanel readOnly={readOnly} />
             {project.backdrop && <BackdropPanel onTrace={() => s.openTracer(project.backdrop?.dataUrl ?? null)} onReplace={pickImage} />}
+            <ToolOptions />
             <PropertiesPanel readOnly={readOnly} />
+            <DesignSection />
           </aside>
         )}
       </div>

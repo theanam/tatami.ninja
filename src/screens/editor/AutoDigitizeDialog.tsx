@@ -136,7 +136,6 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
       maxWidth={980}
       footer={
         <>
-          <span className="meta">Traced at high resolution, then scaled to your design.</span>
           <div className="spacer" />
           <button className="btn page" onClick={onClose}>
             Cancel
@@ -225,7 +224,7 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                     </div>
                   )}
                   {result?.transparent ? (
-                    <p className="note">Transparent areas are never stitched. White and other colors inside the artwork are.</p>
+                    <p className="note">Transparent areas are not stitched.</p>
                   ) : (
                     <label className="check">
                       <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} />
