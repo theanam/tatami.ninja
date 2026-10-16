@@ -3,7 +3,7 @@ import { geometryBounds } from '../engine/geom';
 import { generatePlan } from '../engine/plan';
 import sample from '../model/harbor-club-badge.tatami.json';
 import type { Project } from '../model/types';
-import { autoDigitize, backgroundLabel, quantize, traceMask, unmix, type RasterImage } from './autoDigitize';
+import { autoDigitize, backgroundLabel, hasTransparency, quantize, traceMask, unmix, type RasterImage } from './autoDigitize';
 import { luminance, marchingSquares, otsu, ringArea, traceField } from './trace';
 
 type RGB = [number, number, number];
@@ -159,6 +159,65 @@ describe('edge colors', () => {
     const res = autoDigitize(img, { colors: 2, removeBackground: true, size: 1000, threads: [] });
     const outer = res.objects.find((o) => o.geometry.kind === 'compound');
     expect(outer).toBeTruthy();
+  });
+});
+
+describe('transparency', () => {
+  /** Transparent canvas with a black disk and a white square (white is artwork, not background). */
+  function transparentArt(): RasterImage {
+    const w = 200;
+    const h = 200;
+    const data = new Uint8ClampedArray(w * h * 4); // all transparent
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if ((x - 60) ** 2 + (y - 100) ** 2 <= 40 * 40) data.set([10, 10, 10, 255], i);
+        else if (x >= 120 && x <= 180 && y >= 70 && y <= 130) data.set([255, 255, 255, 255], i);
+      }
+    }
+    return { width: w, height: h, data };
+  }
+
+  it('detects transparency', () => {
+    expect(hasTransparency(transparentArt())).toBe(true);
+    expect(hasTransparency(render(20, 20, WHITE, []))).toBe(false);
+  });
+
+  it('colors mode: transparent is background, white is a real stitched color', () => {
+    const res = autoDigitize(transparentArt(), { colors: 4, removeBackground: true, size: 1000, threads: [] });
+    expect(res.background).toBeNull();
+    expect(res.transparent).toBe(true);
+    expect(res.threads.map((t) => t.hex).sort()).toEqual(['#0A0A0A', '#FFFFFF']);
+    expect(res.objects).toHaveLength(2);
+    // The preview shows transparency as checker, and white as white.
+    const px = (x: number, y: number) => Array.from(res.preview.data.slice((y * 200 + x) * 4, (y * 200 + x) * 4 + 3));
+    expect(px(150, 100)).toEqual([255, 255, 255]);
+    expect(px(5, 5)).not.toEqual([255, 255, 255]);
+  });
+
+  it('colors mode: a white square touching the edges is still not mistaken for background', () => {
+    const img = transparentArt();
+    // Widen the white square to the right and bottom edges.
+    for (let y = 70; y < 200; y++) for (let x = 120; x < 200; x++) img.data.set([255, 255, 255, 255], (y * 200 + x) * 4);
+    const res = autoDigitize(img, { colors: 4, removeBackground: true, size: 1000, threads: [] });
+    expect(res.threads.map((t) => t.hex)).toContain('#FFFFFF');
+  });
+
+  it('threshold mode: inverted (light parts) traces the white square but never the transparent area', () => {
+    const res = autoDigitize(transparentArt(), { mode: 'threshold', colors: 2, removeBackground: true, invert: true, size: 1000, threads: [] });
+    expect(res.objects).toHaveLength(1);
+    const b = geometryBounds(res.objects[0].geometry)!;
+    // The white square spans x 120–180 of 200 px → about 300 units wide at 1000 units per 200 px.
+    expect(b.maxX - b.minX).toBeGreaterThan(290);
+    expect(b.maxX - b.minX).toBeLessThan(315);
+  });
+
+  it('threshold mode: normal (dark parts) traces only the black disk', () => {
+    const res = autoDigitize(transparentArt(), { mode: 'threshold', colors: 2, removeBackground: true, size: 1000, threads: [] });
+    expect(res.objects).toHaveLength(1);
+    const b = geometryBounds(res.objects[0].geometry)!;
+    expect(b.maxX - b.minX).toBeGreaterThan(390);
+    expect(b.maxX - b.minX).toBeLessThan(410);
   });
 });
 

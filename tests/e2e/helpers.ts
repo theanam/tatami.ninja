@@ -33,17 +33,17 @@ export const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10
   <path id="stripe" d="M20 50 H80" stroke="#D4A43A" stroke-width="1" fill="none"/>
 </svg>`;
 
-/** Minimal PNG encoder for test images. */
-export function makePng(width: number, height: number, pixel: (x: number, y: number) => [number, number, number]): Buffer {
-  const raw = Buffer.alloc((width * 3 + 1) * height);
+/** Minimal PNG encoder for test images (RGB, or RGBA when the pixel function returns 4 values). */
+export function makePng(width: number, height: number, pixel: (x: number, y: number) => [number, number, number] | [number, number, number, number]): Buffer {
+  const rgba = pixel(0, 0).length === 4;
+  const bpp = rgba ? 4 : 3;
+  const raw = Buffer.alloc((width * bpp + 1) * height);
   for (let y = 0; y < height; y++) {
-    raw[y * (width * 3 + 1)] = 0;
+    raw[y * (width * bpp + 1)] = 0;
     for (let x = 0; x < width; x++) {
-      const [r, g, b] = pixel(x, y);
-      const o = y * (width * 3 + 1) + 1 + x * 3;
-      raw[o] = r;
-      raw[o + 1] = g;
-      raw[o + 2] = b;
+      const px = pixel(x, y);
+      const o = y * (width * bpp + 1) + 1 + x * bpp;
+      for (let c = 0; c < bpp; c++) raw[o + c] = px[c] ?? 255;
     }
   }
   const crcTable = Array.from({ length: 256 }, (_, n) => {
@@ -68,7 +68,7 @@ export function makePng(width: number, height: number, pixel: (x: number, y: num
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
-  ihdr[9] = 2;
+  ihdr[9] = rgba ? 6 : 2;
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', ihdr),
@@ -77,8 +77,7 @@ export function makePng(width: number, height: number, pixel: (x: number, y: num
   ]);
 }
 
-/**
- * Serve Google Font requests locally so lettering tests do not depend on the network:
+/** Serve Google Font requests locally so lettering tests do not depend on the network:
  * Fontsource WOFF files get a bundled font, css2 previews get an empty stylesheet.
  */
 export async function mockFontNetwork(page: Page) {

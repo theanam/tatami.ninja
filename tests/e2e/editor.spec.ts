@@ -200,6 +200,26 @@ test.describe('editor', () => {
     await expect(panel).toHaveCount(0);
   });
 
+  test('a transparent PNG: transparency is background, white inside the artwork is stitched', async ({ page }) => {
+    await openSample(page);
+    // Transparent canvas, black disk, white square.
+    const png = makePng(120, 120, (x, y) =>
+      (x - 35) ** 2 + (y - 60) ** 2 <= 25 * 25 ? [10, 10, 10, 255] : x >= 75 && x <= 110 && y >= 40 && y <= 80 ? [255, 255, 255, 255] : [0, 0, 0, 0],
+    );
+    await page.getByRole('button', { name: 'Import (I)' }).click();
+    await chooseFile(page, () => page.getByRole('menu', { name: 'Import' }).getByRole('menuitem', { name: /Image/ }).click(), {
+      name: 'logo.png',
+      mimeType: 'image/png',
+      buffer: png,
+    });
+    const dialog = page.getByRole('dialog', { name: 'Trace image' });
+    await expect(dialog.getByText('Transparent areas are never stitched')).toBeVisible();
+    await expect(dialog.getByText(/^2 objects: /)).toBeVisible();
+    await expect(dialog.locator('.ad-palette .swatch-dot.removed')).toHaveCount(0);
+    await dialog.getByRole('button', { name: /^Add 2 objects/ }).click();
+    await expect(page.locator('.row', { hasText: /^White/ }).or(page.locator('.row', { hasText: /White/ }))).toHaveCount(1);
+  });
+
   test('the tool rail Import item imports SVG directly or opens the tracer for images', async ({ page }) => {
     await openSample(page);
     await page.getByRole('button', { name: 'Import (I)' }).click();

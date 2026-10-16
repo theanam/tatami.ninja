@@ -224,10 +224,14 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                       ))}
                     </div>
                   )}
-                  <label className="check">
-                    <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} />
-                    Leave the background color unstitched
-                  </label>
+                  {result?.transparent ? (
+                    <p className="note">Transparent areas are never stitched. White and other colors inside the artwork are.</p>
+                  ) : (
+                    <label className="check">
+                      <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} />
+                      Leave the background color unstitched
+                    </label>
+                  )}
                   <label className="check">
                     <input type="checkbox" checked={fillUnder} onChange={(e) => setFillUnder(e.target.checked)} />
                     Fill under details (no gaps between colors)

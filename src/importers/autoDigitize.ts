@@ -203,6 +203,29 @@ export function backgroundLabel(q: Quantized): number | null {
   return best === null || best < 0 ? null : best;
 }
 
+/** True when a meaningful part of the image (or its border) is transparent. */
+export function hasTransparency(img: RasterImage): boolean {
+  const { width: w, height: h, data } = img;
+  let border = 0;
+  let borderClear = 0;
+  for (let x = 0; x < w; x++) {
+    for (const y of [0, h - 1]) {
+      border++;
+      if (data[(y * w + x) * 4 + 3] < 128) borderClear++;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (const x of [0, w - 1]) {
+      border++;
+      if (data[(y * w + x) * 4 + 3] < 128) borderClear++;
+    }
+  }
+  if (borderClear > 0) return true;
+  let clear = 0;
+  for (let i = 3; i < data.length; i += 4) if (data[i] < 128) clear++;
+  return clear > (w * h) * 0.01;
+}
+
 /** Trace one binary mask with sub-pixel edges (kept for callers and tests). */
 export function traceMask(mask: Uint8Array, w: number, h: number): Area[] {
   const f = new Float32Array(w * h);
@@ -242,6 +265,8 @@ export interface AutoDigitizeResult {
   dropped: number;
   /** Threshold used (threshold mode). */
   threshold?: number;
+  /** The image has transparency: that is the background, and nothing opaque is removed. */
+  transparent: boolean;
   /** What will be stitched, as an image at trace resolution (checker = unstitched). */
   preview: RasterImage;
   /** Traced outlines in image pixels, for drawing over the preview. */
@@ -309,12 +334,20 @@ export function autoDigitize(img: RasterImage, o: AutoDigitizeOptions): AutoDigi
     const T = o.threshold ?? otsu(lum);
     thresholdUsed = Math.round(T);
     const smooth = blur3(lum, w, h);
+    // Transparent pixels are never stitched, whatever their luminance (white included).
+    const alpha = new Float32Array(w * h);
+    for (let i = 0; i < alpha.length; i++) alpha[i] = img.data[i * 4 + 3] >= 128 ? 1 : 0;
+    const alphaSoft = blur3(alpha, w, h);
     const field = new Float32Array(w * h);
-    for (let i = 0; i < field.length; i++) field[i] = o.invert ? smooth[i] - T : T - smooth[i];
+    // Inside needs both: the right side of the cut-off AND opaque (min of the two fields).
+    for (let i = 0; i < field.length; i++) {
+      const tone = o.invert ? smooth[i] - T : T - smooth[i];
+      field[i] = Math.min(tone, (alphaSoft[i] - 0.5) * 510);
+    }
     const hex = normalizeHex(o.lineColor ?? '#1A1A1A');
     const rgb = [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
     for (let i = 0; i < w * h; i++) {
-      const inside = o.invert ? lum[i] > T : lum[i] < T;
+      const inside = alpha[i] > 0 && (o.invert ? lum[i] > T : lum[i] < T);
       const v = checker(i);
       preview.set(inside ? [rgb[0], rgb[1], rgb[2], 255] : [v, v, v, 255], i * 4);
     }
@@ -323,7 +356,9 @@ export function autoDigitize(img: RasterImage, o: AutoDigitizeOptions): AutoDigi
   } else {
     const q = quantize(img, Math.max(2, Math.min(12, o.colors)));
     palette = q.palette;
-    bg = o.removeBackground ? backgroundLabel(q) : null;
+    // With transparency, the transparent area IS the background: white (or any color) inside
+    // the artwork is a real color to stitch, never auto-removed.
+    bg = o.removeBackground && !hasTransparency(img) ? backgroundLabel(q) : null;
     for (let i = 0; i < w * h; i++) {
       const l = q.labels[i];
       if (l < 0 || l === bg) {
@@ -414,5 +449,15 @@ export function autoDigitize(img: RasterImage, o: AutoDigitizeOptions): AutoDigi
       advanced: { underlay: 'inherit', pullComp: 'inherit', tieIn: true, tieOff: true, trimBefore: false, trimAfter: false },
     } satisfies StitchObject;
   });
-  return { objects, threads, palette, background: bg, dropped, threshold: thresholdUsed, preview: { width: w, height: h, data: preview }, outlines };
+  return {
+    objects,
+    threads,
+    palette,
+    background: bg,
+    dropped,
+    threshold: thresholdUsed,
+    transparent: hasTransparency(img),
+    preview: { width: w, height: h, data: preview },
+    outlines,
+  };
 }
