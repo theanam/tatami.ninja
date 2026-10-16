@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { alignObjects, circleCopies, distributeObjects, flipObject, gridCopies, type AlignTo, type FlipAxis } from '../model/arrange';
+import { alignObjects, backgroundObject, circleCopies, distributeObjects, echoObject, flipObject, gridCopies, type AlignTo, type BackgroundKind, type FlipAxis } from '../model/arrange';
 import { booleanAreas, offsetAreas, type BoolOp } from '../engine/clip';
 import { areasOf, unionBounds, type Area } from '../engine/geom';
 import type { Warning } from '../engine/warnings';
@@ -150,6 +150,8 @@ export interface EditorState {
   ungroupSelected(): void;
   copyAroundCircle(count: number, radius: number): void;
   copyInGrid(rows: number, cols: number, gapX: number, gapY: number): void;
+  addEcho(count: number, spacing: number): void;
+  addBackground(kind: BackgroundKind, margin: number): void;
   scaleToFitHoop(): void;
   autoOrderByColor(): void;
   convertToSatin(ids: string[], width: number): void;
@@ -484,6 +486,30 @@ export const useEditor = create<EditorState>((set, get) => {
         get().addObjects(copies);
         set({ selection: [...objs.map((o) => o.id), ...copies.map((o) => o.id)] });
       }
+    },
+
+    addEcho(count, spacing) {
+      const objs = selectedObjects(get());
+      const echo = echoObject(objs, Math.max(1, Math.round(count)), spacing, get().ensureActiveThread());
+      if (!echo) return;
+      const last = Math.max(...objs.map((o) => get().project!.objects.indexOf(o)));
+      get().update((p) => {
+        const objects = [...p.objects];
+        objects.splice(last + 1, 0, echo);
+        return { ...p, objects };
+      }, { dirty: [echo.id] });
+      set({ selection: [echo.id] });
+    },
+
+    addBackground(kind, margin) {
+      const { project } = get();
+      if (!project) return;
+      const objs = selectedObjects(get());
+      const bg = backgroundObject(objs.length ? objs : project.objects, project.hoop, kind, margin, get().ensureActiveThread());
+      if (!bg) return;
+      // Backgrounds sew first, under everything.
+      get().update((p) => ({ ...p, objects: [bg, ...p.objects] }), { dirty: [bg.id] });
+      set({ selection: [bg.id] });
     },
 
     scaleToFitHoop() {

@@ -43,6 +43,8 @@ const EXTRA: Record<string, string> = {
   'group': '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 2"/><rect x="7" y="7" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/>',
   'ungroup': '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/>',
   'copy-circle': '<circle cx="12" cy="12" r="8" stroke-dasharray="2 2"/><circle cx="12" cy="4" r="2"/><circle cx="19" cy="15" r="2"/><circle cx="5" cy="15" r="2"/>',
+  echo: '<rect x="9" y="9" width="6" height="6" rx="1"/><rect x="5.5" y="5.5" width="13" height="13" rx="3"/><rect x="2" y="2" width="20" height="20" rx="5"/>',
+  background: '<rect x="2" y="3" width="20" height="18" rx="2"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" opacity=".35"/><path d="M5 7c2 2 3-1 5 1M15 17c2 1 3-2 5 0M4 16c1.5-1 2.5 1 4 0M16 6c1 1.5 2.5-.5 4 1"/>',
   'copy-grid': '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   rotate: '<path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/>',
   union: '<rect x="3" y="3" width="12" height="12" rx="1"/><rect x="9" y="9" width="12" height="12" rx="1"/>',

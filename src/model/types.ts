@@ -23,7 +23,7 @@ export type Geometry =
   /** Raw stitches from an opened stitch file: flat [x, y, cmd, x, y, cmd, …]. */
   | { kind: 'stitches'; data: number[] };
 
-export type FillPattern = 'rows' | 'radial' | 'spiral' | 'circles' | 'net' | 'zigzag-net' | 'cross' | 'motif';
+export type FillPattern = 'rows' | 'radial' | 'spiral' | 'circles' | 'net' | 'zigzag-net' | 'cross' | 'lines' | 'motif' | 'stipple' | 'echo';
 
 export type RunStyle = 'single' | 'triple' | 'stem' | 'chain' | 'candlewick' | 'e' | 'v' | 'motif';
 
@@ -45,6 +45,8 @@ export interface ObjectParams {
   fillPattern?: FillPattern;
   /** Line spacing of open patterns (net, zigzag net, cross), or the gap between motif rows (0.1 mm). */
   patternSpacing?: number;
+  /** Stipple layout seed (change for a different meander). */
+  seed?: number;
   /** Motif id for motif fills and motif runs. */
   motif?: string;
   /** Motif cell width (0.1 mm). */

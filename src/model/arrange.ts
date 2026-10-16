@@ -1,6 +1,8 @@
+import { booleanAreas, normalizeAreas, offsetAreas, strokeAreas } from '../engine/clip';
+import { areasOf, pathsOf, type Area } from '../engine/geom';
 import { newId } from './project';
 import { mapGeometry, normAngle, objectsBounds, rotateObject, translateObject } from './transform';
-import type { Bounds, Pt, StitchObject } from './types';
+import type { Bounds, Pt, Ring, StitchObject } from './types';
 
 export type FlipAxis = 'horizontal' | 'vertical';
 export type AlignTo = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
@@ -148,3 +150,62 @@ export function gridCopies(objs: StitchObject[], rows: number, cols: number, gap
   return out;
 }
 
+
+const toPts = (pts: [number, number][]): Pt[] => pts.map(([x, y]) => [Math.round(x), Math.round(y)]);
+
+/** The area an object covers on the fabric (closed shapes, satin columns, or a band around runs). */
+function footprint(o: StitchObject): Area[] {
+  const a = areasOf(o.geometry);
+  if (a.length) return a;
+  const lines = pathsOf(o.geometry).map((p) => (p.closed ? [...p.points, p.points[0]] : p.points));
+  return lines.length ? strokeAreas(lines, Math.max(10, o.params.width ?? 10)) : [];
+}
+
+/** Run lines repeated outward around the objects, `spacing` apart. */
+export function echoObject(objs: StitchObject[], count: number, spacing: number, thread: string): StitchObject | null {
+  const base = normalizeAreas(objs.flatMap(footprint), 'nonzero');
+  if (!base.length) return null;
+  const parts: Ring[] = [];
+  for (let k = 1; k <= count; k++) {
+    for (const a of offsetAreas(base, k * spacing)) {
+      parts.push({ points: toPts(a.outer) });
+      for (const h of a.holes) parts.push({ points: toPts(h) });
+    }
+  }
+  if (!parts.length) return null;
+  return {
+    id: newId('o'),
+    name: 'Echo',
+    type: 'run',
+    thread,
+    visible: true,
+    locked: false,
+    geometry: { kind: 'compound', parts },
+    params: { stitchLength: 25 },
+    advanced: {},
+  };
+}
+
+export type BackgroundKind = 'stipple' | 'echo' | 'cross' | 'lines';
+
+/** A quilting fill over the hoop (5 mm inside its edge) around the objects, with a margin. */
+export function backgroundObject(objs: StitchObject[], hoop: { width: number; height: number }, kind: BackgroundKind, margin: number, thread: string): StitchObject | null {
+  const w = hoop.width / 2 - 50;
+  const h = hoop.height / 2 - 50;
+  if (w <= 0 || h <= 0) return null;
+  const rect: Area = { outer: [[-w, -h], [w, -h], [w, h], [-w, h]], holes: [] };
+  const design = normalizeAreas(objs.flatMap(footprint), 'nonzero');
+  const area = design.length ? booleanAreas([rect], offsetAreas(design, margin), 'difference') : [rect];
+  if (!area.length) return null;
+  return {
+    id: newId('o'),
+    name: `Background (${kind})`,
+    type: 'tatami',
+    thread,
+    visible: true,
+    locked: false,
+    geometry: { kind: 'compound', parts: area.map((a) => ({ points: toPts(a.outer), holes: a.holes.map(toPts) })) },
+    params: { fillPattern: kind, patternSpacing: kind === 'stipple' ? 40 : kind === 'echo' ? 30 : 60, angleDeg: 45, stitchLength: 25 },
+    advanced: { underlay: 'none' },
+  };
+}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { IconButton, NumberInput } from '../../components/ui';
+import { IconButton, NumberInput, Select } from '../../components/ui';
+import type { BackgroundKind } from '../../model/arrange';
 import { fromDisplay, toDisplay } from '../../model/units';
 import { selectedObjects, useEditor } from '../../store/editor';
 
@@ -12,6 +13,10 @@ export function ArrangePanel({ readOnly }: { readOnly: boolean }) {
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(3);
   const [gap, setGap] = useState(50);
+  const [echoes, setEchoes] = useState(3);
+  const [echoGap, setEchoGap] = useState(40);
+  const [bgKind, setBgKind] = useState<BackgroundKind>('stipple');
+  const [bgMargin, setBgMargin] = useState(30);
   const sel = selectedObjects({ project, selection });
   if (!sel.length || readOnly || sel.every((o) => o.type === 'stitches')) return null;
   const s = useEditor.getState();
@@ -66,6 +71,28 @@ export function ArrangePanel({ readOnly }: { readOnly: boolean }) {
           </div>
           <NumberInput label="Grid gap" value={toDisplay(gap, units)} decimals={dec} min={0} max={toDisplay(1000, units)} unit={units} onChange={(v) => setGap(fromDisplay(v, units))} />
           <IconButton icon="copy-grid" label="Copy in a grid" onClick={() => s.copyInGrid(rows, cols, gap, gap)} />
+        </div>
+        <div className="copy-row">
+          <span className="prop-label">Echo</span>
+          <NumberInput label="Echo lines" value={echoes} decimals={0} min={1} max={30} unit="×" onChange={(v) => setEchoes(Math.round(v))} />
+          <NumberInput label="Echo spacing" value={toDisplay(echoGap, units)} decimals={dec} min={toDisplay(10, units)} max={toDisplay(300, units)} unit={units} onChange={(v) => setEchoGap(fromDisplay(v, units))} />
+          <IconButton icon="echo" label="Add echo lines" onClick={() => s.addEcho(echoes, echoGap)} />
+        </div>
+        <div className="copy-row">
+          <span className="prop-label">Fill</span>
+          <Select<BackgroundKind>
+            label="Background pattern"
+            value={bgKind}
+            onChange={setBgKind}
+            options={[
+              { value: 'stipple', label: 'Stipple' },
+              { value: 'echo', label: 'Echo' },
+              { value: 'cross', label: 'Cross-hatch' },
+              { value: 'lines', label: 'Lines' },
+            ]}
+          />
+          <NumberInput label="Background margin" value={toDisplay(bgMargin, units)} decimals={dec} min={0} max={toDisplay(300, units)} unit={units} onChange={(v) => setBgMargin(fromDisplay(v, units))} />
+          <IconButton icon="background" label="Fill the hoop around the selection" onClick={() => s.addBackground(bgKind, bgMargin)} />
         </div>
       </fieldset>
     </section>

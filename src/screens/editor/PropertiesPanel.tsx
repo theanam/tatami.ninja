@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { NumberInput, ParamRow, SegmentedControl, Select, Switch, toast } from '../../components/ui';
+import { IconButton, NumberInput, ParamRow, SegmentedControl, Select, Switch, toast } from '../../components/ui';
 import { resolveParams } from '../../engine/objects';
-import { OPEN_PATTERNS } from '../../engine/patterns';
+import { ANGLED_PATTERNS, OPEN_PATTERNS } from '../../engine/patterns';
 import { areasOf } from '../../engine/geom';
 import { objectsBounds, satinWidth } from '../../model/transform';
 import type { FillPattern, RunStyle, StitchObject, StitchType, UnderlayType } from '../../model/types';
@@ -61,7 +61,10 @@ const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
   { value: 'net', label: 'Net' },
   { value: 'zigzag-net', label: 'Zigzag net' },
   { value: 'cross', label: 'Cross-hatch' },
+  { value: 'lines', label: 'Lines' },
   { value: 'motif', label: 'Motif' },
+  { value: 'stipple', label: 'Stipple' },
+  { value: 'echo', label: 'Echo' },
 ];
 
 const RUN_STYLES: { value: RunStyle; label: string }[] = [
@@ -188,13 +191,16 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
             <label htmlFor="pattern" className="prop-label">
               Pattern
             </label>
-            <Select<FillPattern> id="pattern" value={r.fillPattern} options={FILL_PATTERNS} onChange={(v) => s.setParams(ids, { fillPattern: v })} />
+            <div className={r.fillPattern === 'stipple' ? 'select-with-btn' : undefined}>
+              <Select<FillPattern> id="pattern" value={r.fillPattern} options={FILL_PATTERNS} onChange={(v) => s.setParams(ids, { fillPattern: v })} />
+              {r.fillPattern === 'stipple' && <IconButton icon="rotate" label="New meander" onClick={() => s.setParams(ids, { seed: r.seed + 1 })} />}
+            </div>
           </div>
         )}
         <div className="prop-grid">
           {o.type === 'tatami' && (
             <>
-              {(r.fillPattern === 'rows' || OPEN_PATTERNS.includes(r.fillPattern)) && (
+              {ANGLED_PATTERNS.includes(r.fillPattern) && (
                 <ParamRow
                   label="Angle"
                   value={r.angleDeg}

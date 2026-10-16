@@ -29,6 +29,7 @@ export interface ResolvedParams {
   randomShift: boolean;
   motif: string;
   motifSize: number;
+  seed: number;
   rowSpacing: number;
   stitchLength: number;
   repeats: number;
@@ -63,9 +64,10 @@ export function resolveParams(obj: StitchObject, fabricId: string): ResolvedPara
   return {
     angleDeg: p.angleDeg ?? 45,
     fillPattern: p.fillPattern ?? 'rows',
-    patternSpacing: p.patternSpacing ?? (p.fillPattern === 'motif' ? 10 : 30),
+    patternSpacing: p.patternSpacing ?? (p.fillPattern === 'motif' ? 10 : p.fillPattern === 'stipple' ? 40 : 30),
     motif: p.motif ?? 'wave',
     motifSize: p.motifSize ?? 60,
+    seed: p.seed ?? 1,
     randomShift: p.randomShift ?? false,
     rowSpacing: p.rowSpacing ?? f.rowSpacing,
     stitchLength: p.stitchLength ?? (obj.type === 'run' ? 25 : obj.type === 'contour' ? 25 : 35),
@@ -123,6 +125,7 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
               startNear: last,
               motif: r.motif,
               motifSize: r.motifSize,
+              seed: r.seed,
             })
           : obj.type === 'tatami'
           ? fillAreas(areas, {

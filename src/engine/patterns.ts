@@ -1,4 +1,5 @@
-import { clipLines } from './clip';
+import { clipLines, offsetAreas } from './clip';
+import { stippleLines } from './stipple';
 import { dist, lerp, pointInArea, rotate, type Area, type P } from './geom';
 import { getMotif, motifRows } from './motifs';
 import { runStitches } from './run';
@@ -7,7 +8,9 @@ import type { FillPattern } from '../model/types';
 
 export type { FillPattern };
 /** Open patterns are lattices; the others cover the shape densely. */
-export const OPEN_PATTERNS: FillPattern[] = ['net', 'zigzag-net', 'cross', 'motif'];
+export const OPEN_PATTERNS: FillPattern[] = ['net', 'zigzag-net', 'cross', 'lines', 'motif', 'stipple', 'echo'];
+/** Patterns that have a direction (the angle control applies). */
+export const ANGLED_PATTERNS: FillPattern[] = ['rows', 'net', 'zigzag-net', 'cross', 'lines', 'motif'];
 
 export interface PatternOptions {
   pattern: Exclude<FillPattern, 'rows'>;
@@ -19,6 +22,7 @@ export interface PatternOptions {
   motif?: string;
   /** Motif cell width (0.1 mm). */
   motifSize?: number;
+  seed?: number;
 }
 
 function bboxOf(areas: Area[]) {
@@ -60,7 +64,7 @@ function parallel(cx: number, cy: number, r: number, spacing: number, angleDeg: 
 }
 
 /** The pattern's lines over the shape's bounding circle (unclipped). */
-export function patternLines(areas: Area[], o: Pick<PatternOptions, 'pattern' | 'spacing' | 'angleDeg' | 'motif' | 'motifSize'>): P[][] {
+export function patternLines(areas: Area[], o: Pick<PatternOptions, 'pattern' | 'spacing' | 'angleDeg' | 'motif' | 'motifSize' | 'seed'>): P[][] {
   const b = bboxOf(areas);
   const s = o.pattern === 'motif' ? Math.max(0, o.spacing) : Math.max(2, o.spacing);
   switch (o.pattern) {
@@ -109,6 +113,12 @@ export function patternLines(areas: Area[], o: Pick<PatternOptions, 'pattern' | 
       return [...parallel(b.cx, b.cy, b.r, s, o.angleDeg + 30, s / 2), ...parallel(b.cx, b.cy, b.r, s, o.angleDeg - 30, s / 2)];
     case 'cross':
       return [...parallel(b.cx, b.cy, b.r, s, o.angleDeg + 45), ...parallel(b.cx, b.cy, b.r, s, o.angleDeg - 45)];
+    case 'lines':
+      return parallel(b.cx, b.cy, b.r, s, o.angleDeg);
+    case 'stipple':
+      return stippleLines(areas, s, o.seed ?? 1);
+    case 'echo':
+      return echoLines(areas, s);
     case 'motif':
       // Here `spacing` is the gap between motif rows (may be 0).
       return motifRows(getMotif(o.motif), b.cx, b.cy, b.r, Math.max(20, o.motifSize ?? 60), o.spacing, o.angleDeg);
@@ -144,7 +154,7 @@ export function patternFill(areas: Area[], o: PatternOptions): P[][] {
     }
     used[best] = true;
     const line = rev ? [...pieces[best]].reverse() : pieces[best];
-    const st = runStitches(line, false, o.pattern === 'motif' ? Math.min(o.stitchLen, 25) : o.stitchLen, null);
+    const st = runStitches(line, false, o.pattern === 'motif' || o.pattern === 'stipple' ? Math.min(o.stitchLen, o.pattern === 'stipple' ? Math.max(8, o.spacing / 2.5) : 25) : o.stitchLen, null);
     // Long travel across an open pattern would show, so only short hops are stitched.
     const maxTravel = OPEN_PATTERNS.includes(o.pattern) ? 25 : Math.max(30, o.spacing * 3);
     if (cur && group.length && (dist(cur, st[0]) > maxTravel || !inside(cur, st[0], areas))) {
@@ -156,6 +166,31 @@ export function patternFill(areas: Area[], o: PatternOptions): P[][] {
   }
   if (group.length) groups.push(group);
   return groups;
+}
+
+/**
+ * Echo lines: outlines repeated every `spacing` outward from the holes (the design a
+ * background surrounds). A shape without holes echoes its own outline inward.
+ */
+export function echoLines(areas: Area[], spacing: number): P[][] {
+  const out: P[][] = [];
+  const holes: Area[] = areas.flatMap((a) => a.holes.map((h) => ({ outer: h, holes: [] })));
+  const b = bboxOf(areas);
+  const ringsOf = (as: Area[]) => as.flatMap((a) => [a.outer, ...a.holes]).map((r) => [...r, r[0]]);
+  if (holes.length) {
+    for (let k = 1; k * spacing < b.r * 2 && k < 400; k++) {
+      const rings = ringsOf(offsetAreas(holes, k * spacing));
+      if (!rings.length) break;
+      out.push(...rings);
+    }
+  } else {
+    let cur = offsetAreas(areas, -spacing / 2);
+    for (let k = 0; cur.length && k < 400; k++) {
+      out.push(...ringsOf(cur));
+      cur = offsetAreas(cur, -spacing);
+    }
+  }
+  return out;
 }
 
 function lineLength(l: P[]) {

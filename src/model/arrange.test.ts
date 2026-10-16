@@ -81,3 +81,26 @@ describe('arrange', () => {
     expect(groups.has('g')).toBe(false);
   });
 });
+
+describe('quilting objects', () => {
+  it('echoes outlines outward, count times', async () => {
+    const { echoObject } = await import('./arrange');
+    const e = echoObject([box('a', 0, 0)], 3, 40, 't')!;
+    expect(e.type).toBe('run');
+    expect(e.geometry.kind).toBe('compound');
+    if (e.geometry.kind === 'compound') expect(e.geometry.parts).toHaveLength(3);
+    expect(objectsBounds([e])).toMatchObject({ minX: -120, maxX: 220 });
+  });
+
+  it('fills the hoop around the design, leaving a margin', async () => {
+    const { backgroundObject } = await import('./arrange');
+    const bg = backgroundObject([box('a', -50, -50)], { width: 1000, height: 800 }, 'stipple', 30, 't')!;
+    expect(bg.params.fillPattern).toBe('stipple');
+    expect(objectsBounds([bg])).toEqual({ minX: -450, minY: -350, maxX: 450, maxY: 350 });
+    if (bg.geometry.kind !== 'compound') throw new Error('compound');
+    const hole = bg.geometry.parts[0].holes![0];
+    const xs = hole.map((p) => p[0]);
+    expect(Math.min(...xs)).toBeLessThanOrEqual(-79);
+    expect(Math.max(...xs)).toBeGreaterThanOrEqual(79);
+  });
+});

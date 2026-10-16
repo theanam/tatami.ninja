@@ -340,11 +340,11 @@ test('fill patterns: radial, net and random shift', async ({ page }) => {
   await page.locator('.seq-list .row').filter({ hasText: 'Badge fill' }).click();
   await expect(page.getByLabel('Random shift')).toBeVisible();
   const before = await stitchTotal(page);
-  await page.getByLabel('Pattern').selectOption('radial');
+  await page.getByLabel('Pattern', { exact: true }).selectOption('radial');
   await expect(page.locator('[data-pattern="radial"]')).toHaveCount(1);
   await expect(page.getByLabel('Angle in degrees')).toHaveCount(0);
   await expect.poll(() => stitchTotal(page)).not.toBe(before);
-  await page.getByLabel('Pattern').selectOption('net');
+  await page.getByLabel('Pattern', { exact: true }).selectOption('net');
   await expect(page.getByLabel('Pattern spacing in millimetres')).toBeVisible();
   await expect(page.getByLabel('Random shift')).toHaveCount(0);
   await expect.poll(() => stitchTotal(page)).toBeLessThan(before);
@@ -353,7 +353,7 @@ test('fill patterns: radial, net and random shift', async ({ page }) => {
 test('motif fills and motif runs use the motif library', async ({ page }) => {
   await openSample(page);
   await page.locator('.seq-list .row').filter({ hasText: 'Badge fill' }).click();
-  await page.getByLabel('Pattern').selectOption('motif');
+  await page.getByLabel('Pattern', { exact: true }).selectOption('motif');
   await page.getByRole('radio', { name: 'Heart' }).click();
   await expect(page.getByRole('radio', { name: 'Heart' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByLabel('Motif row gap in millimetres')).toBeVisible();
@@ -364,4 +364,19 @@ test('motif fills and motif runs use the motif library', async ({ page }) => {
   await page.getByRole('radio', { name: 'Scallop' }).click();
   await expect(page.getByLabel('Motif size in millimetres')).toBeVisible();
   await expect.poll(() => stitchTotal(page)).not.toBe(before);
+});
+
+test('quilting: stipple fill, echo lines and a background around the design', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').filter({ hasText: 'Star' }).click();
+  await page.getByLabel('Pattern', { exact: true }).selectOption('stipple');
+  await expect(page.getByLabel('Angle in degrees')).toHaveCount(0);
+  await page.getByRole('button', { name: 'New meander' }).click();
+  await page.getByRole('button', { name: 'Add echo lines' }).click();
+  await expect(page.locator('.seq-list .row').filter({ hasText: 'Echo' })).toHaveCount(1);
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.getByLabel('Background pattern').selectOption('echo');
+  await page.getByRole('button', { name: 'Fill the hoop around the selection' }).click();
+  await expect(page.locator('.seq-list .row').first()).toContainText('Background (echo)');
+  await expect(page.locator('.statusbar')).toContainText(/[1-9][\d,]* stitches/);
 });

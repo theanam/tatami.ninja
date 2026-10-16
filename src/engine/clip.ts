@@ -104,3 +104,12 @@ export function clipLines(lines: P[][], areas: Area[]): P[][] {
   const open = (ClipperLib.Clipper as unknown as { OpenPathsFromPolyTree(t: unknown): CPath[] }).OpenPathsFromPolyTree(tree);
   return open.map(fromPath).filter((l) => l.length >= 2);
 }
+
+/** Areas covered by open polylines drawn `width` wide (round ends). */
+export function strokeAreas(lines: P[][], width: number): Area[] {
+  const co = new ClipperLib.ClipperOffset(2, 0.25 * S);
+  co.AddPaths(lines.filter((l) => l.length >= 2).map(toPath), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etOpenRound);
+  const tree = new ClipperLib.PolyTree();
+  co.Execute(tree, (width / 2) * S);
+  return treeToAreas(tree);
+}

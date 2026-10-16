@@ -1,4 +1,4 @@
-import { OPEN_PATTERNS } from '../../engine/patterns';
+import { ANGLED_PATTERNS } from '../../engine/patterns';
 import { withGroups } from '../../model/arrange';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { geometryBounds, type P } from '../../engine/geom';
@@ -846,7 +846,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         const kx = sx + Math.cos(rad) * R;
         const ky = sy - Math.sin(rad) * R;
         const pat = single.params.fillPattern ?? 'rows';
-        if (single.type === 'tatami' && (pat === 'rows' || OPEN_PATTERNS.includes(pat))) {
+        if (single.type === 'tatami' && ANGLED_PATTERNS.includes(pat)) {
           const ar = 18;
           overlays.push(
             <g key="angle" className="angle-handle">
