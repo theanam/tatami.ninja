@@ -4,7 +4,7 @@ import { NumberInput, ParamRow, SegmentedControl, Select, Switch } from '../../c
 import { resolveParams } from '../../engine/objects';
 import { areasOf } from '../../engine/geom';
 import { objectsBounds, satinWidth } from '../../model/transform';
-import type { StitchObject, StitchType, UnderlayType } from '../../model/types';
+import type { RunStyle, StitchObject, StitchType, UnderlayType } from '../../model/types';
 import { fmtLen, fromDisplay, toDisplay } from '../../model/units';
 import { FABRICS, HOOPS, hoopLabel, MACHINES, UNDERLAY_OPTIONS } from '../../presets';
 import { ThreadPicker } from '../../components/ThreadPicker';
@@ -48,6 +48,16 @@ export function ToolOptions() {
     </section>
   );
 }
+
+const RUN_STYLES: { value: RunStyle; label: string }[] = [
+  { value: 'single', label: 'Single' },
+  { value: 'triple', label: 'Triple (bean)' },
+  { value: 'stem', label: 'Stem' },
+  { value: 'chain', label: 'Chain' },
+  { value: 'candlewick', label: 'Candlewick' },
+  { value: 'e', label: 'E stitch' },
+  { value: 'v', label: 'V stitch' },
+];
 
 function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean }) {
   const project = useEditor((s) => s.project)!;
@@ -151,18 +161,36 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
           )}
         </div>
         {o.type === 'run' && (
-          <div className="prop-line">
-            <span className="prop-label">Repeats</span>
-            <SegmentedControl
-              label="Run repeats"
-              value={r.repeats >= 3 ? '3' : '1'}
-              onChange={(v) => s.setParams(ids, { repeats: Number(v) })}
-              options={[
-                { value: '1', label: 'Single' },
-                { value: '3', label: 'Triple (bean)' },
-              ]}
-            />
-          </div>
+          <>
+            <div className="prop-grid two">
+              <label htmlFor="runstyle" className="prop-label">
+                Style
+              </label>
+              <Select<RunStyle>
+                id="runstyle"
+                value={r.runStyle}
+                options={RUN_STYLES}
+                onChange={(v) => s.setParams(ids, { runStyle: v, repeats: v === 'triple' ? 3 : 1 })}
+              />
+            </div>
+            {r.runStyle !== 'single' && r.runStyle !== 'triple' && (
+              <div className="prop-grid">
+                <LenRow
+                  label={r.runStyle === 'candlewick' ? 'Knot size' : 'Width'}
+                  name={r.runStyle === 'candlewick' ? 'Knot size' : 'Stitch width'}
+                  value={r.styleWidth}
+                  min={10}
+                  max={60}
+                  step={1}
+                  units={units}
+                  onChange={(v) => s.setParams(ids, { styleWidth: v }, 'styleWidth')}
+                />
+                {r.runStyle === 'candlewick' && (
+                  <LenRow label="Spacing" name="Knot spacing" value={r.knotSpacing} min={20} max={200} step={5} units={units} onChange={(v) => s.setParams(ids, { knotSpacing: v }, 'knotSpacing')} />
+                )}
+              </div>
+            )}
+          </>
         )}
         {o.type === 'satin' && (
           <>

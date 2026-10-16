@@ -23,6 +23,8 @@ export type Geometry =
   /** Raw stitches from an opened stitch file: flat [x, y, cmd, x, y, cmd, …]. */
   | { kind: 'stitches'; data: number[] };
 
+export type RunStyle = 'single' | 'triple' | 'stem' | 'chain' | 'candlewick' | 'e' | 'v';
+
 export type StitchType = 'run' | 'satin' | 'tatami' | 'contour' | 'applique' | 'stitches';
 
 export type UnderlayType =
@@ -43,6 +45,12 @@ export interface ObjectParams {
   stitchLength?: number;
   /** Run repeats: 1 = single, 3 = triple/bean. */
   repeats?: number;
+  /** Decorative run style (default: single, or triple when repeats = 3). */
+  runStyle?: RunStyle;
+  /** Width of stem, chain and E/V stitches, and candlewick knot size (0.1 mm). */
+  styleWidth?: number;
+  /** Candlewick knot spacing (0.1 mm). */
+  knotSpacing?: number;
   /** Satin density: spacing between satin stitches (0.1 mm). */
   density?: number;
   /** Satin width (0.1 mm) when the satin follows a single path/outline. */

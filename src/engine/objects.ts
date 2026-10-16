@@ -1,10 +1,11 @@
-import type { StitchObject, UnderlayType } from '../model/types';
+import type { RunStyle, StitchObject, UnderlayType } from '../model/types';
 import { getFabric, type FabricPreset } from '../presets';
 import { offsetAreas } from './clip';
 import { contourFill } from './contour';
 import { fillAreas } from './fill';
 import { areasOf, pathsOf, principalAngle, type Area, type P } from './geom';
-import { beanStitches, runStitches } from './run';
+import { runStitches } from './run';
+import { styledRun } from './runStyles';
 import {
   centerLine,
   columnFromPath,
@@ -25,6 +26,9 @@ export interface ResolvedParams {
   rowSpacing: number;
   stitchLength: number;
   repeats: number;
+  runStyle: RunStyle;
+  styleWidth: number;
+  knotSpacing: number;
   density: number;
   width: number;
   shortStitches: boolean;
@@ -51,6 +55,9 @@ export function resolveParams(obj: StitchObject, fabricId: string): ResolvedPara
     rowSpacing: p.rowSpacing ?? f.rowSpacing,
     stitchLength: p.stitchLength ?? (obj.type === 'run' ? 25 : obj.type === 'contour' ? 25 : 35),
     repeats: p.repeats ?? 1,
+    runStyle: p.runStyle ?? ((p.repeats ?? 1) >= 3 ? 'triple' : 'single'),
+    styleWidth: p.styleWidth ?? (p.runStyle === 'candlewick' ? 24 : 20),
+    knotSpacing: p.knotSpacing ?? 50,
     density: p.density ?? f.satinDensity,
     width: p.width ?? 30,
     shortStitches: p.shortStitches ?? true,
@@ -77,7 +84,7 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
       const out: Piece[] = [];
       let cur = entry;
       for (const path of pathsOf(g)) {
-        const st = beanStitches(runStitches(path.points, path.closed, r.stitchLength, cur), r.repeats);
+        const st = styledRun(path.points, path.closed, { style: r.runStyle, stitchLength: r.stitchLength, width: r.styleWidth, knotSpacing: r.knotSpacing }, cur);
         if (st.length) {
           out.push({ pts: st });
           cur = st[st.length - 1];

@@ -322,3 +322,15 @@ test('arrange: group, flip, align and arranged copies', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+z');
   await expect(page.locator('.seq-list .row')).toHaveCount(9);
 });
+
+test('run objects can use decorative styles (candlewick shows knot settings)', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').filter({ hasText: 'Inner ring' }).click();
+  const before = await stitchTotal(page);
+  await page.getByLabel('Style', { exact: true }).selectOption('candlewick');
+  await expect(page.getByLabel('Knot spacing', { exact: false }).first()).toBeVisible();
+  await expect.poll(() => stitchTotal(page)).toBeGreaterThan(before);
+  await page.getByLabel('Style', { exact: true }).selectOption('chain');
+  await expect(page.getByLabel('Knot spacing', { exact: false })).toHaveCount(0);
+  await expect(page.getByLabel(/Stitch width/).first()).toBeVisible();
+});
