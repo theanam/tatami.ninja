@@ -71,6 +71,8 @@ export interface AdvancedParams {
   trimAfter?: boolean;
 }
 
+export type TextWarp = 'arch' | 'bulge' | 'pinch' | 'wave' | 'rise' | 'peak';
+
 export interface TextSpec {
   content: string;
   /** Built-in font id (e.g. `geist`) or a Google Font as `gf:<fontsource id>`. */
@@ -83,6 +85,12 @@ export interface TextSpec {
   spacing: number;
   /** Arc radius in 0.1 mm; 0 = straight baseline. Negative curves downward. */
   arc: number;
+  /** Text around a whole circle (radius fits the text) or on a spiral (starts at |arc|). */
+  shape?: 'circle' | 'spiral';
+  /** Envelope distortion of the letters. */
+  warp?: TextWarp;
+  /** Warp strength, 0–100 (%). */
+  warpAmount?: number;
   /** Baseline center. */
   x: number;
   y: number;

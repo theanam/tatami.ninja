@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { SegmentedControl, Select, Spinner } from '../../components/ui';
+import { ParamRow, Select, Spinner } from '../../components/ui';
 import { geometryBounds } from '../../engine/geom';
 import { ensureCssFont, fontDisplayName, isGoogleFont, loadCatalog, nearestWeight, type FontEntry } from '../../importers/fontCatalog';
 import { fontMetrics, loadSpecFont } from '../../importers/lettering';
-import type { StitchObject, TextSpec } from '../../model/types';
+import type { StitchObject, TextSpec, TextWarp } from '../../model/types';
 import type { Units } from '../../model/units';
 import { useEditor } from '../../store/editor';
 import { toScreen, type View } from './canvasMath';
@@ -114,6 +114,16 @@ export function InlineTextEditor({ o, v, color, onDone }: { o: StitchObject; v: 
   );
 }
 
+const WARPS: { value: TextWarp | 'none'; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'arch', label: 'Arch' },
+  { value: 'peak', label: 'Peak' },
+  { value: 'bulge', label: 'Bulge' },
+  { value: 'pinch', label: 'Pinch' },
+  { value: 'wave', label: 'Wave' },
+  { value: 'rise', label: 'Rise' },
+];
+
 /** Lettering settings in the Properties panel: font, weight, size, spacing, arc. */
 export function LetteringSection({ o, units }: { o: StitchObject; units: Units }) {
   const spec = o.text!;
@@ -144,9 +154,15 @@ export function LetteringSection({ o, units }: { o: StitchObject; units: Units }
 
   const entry = catalog?.find((f) => f.id === spec.font);
   const weights = isGoogleFont(spec.font) ? entry?.weights ?? [spec.weight ?? 400] : [];
-  const arcMode = spec.arc === 0 ? 'straight' : spec.arc > 0 ? 'up' : 'down';
   const b = geometryBounds(o.geometry);
   const textWidth = b ? b.maxX - b.minX : 400;
+  const arcMode = spec.shape ?? (spec.arc === 0 ? 'straight' : spec.arc > 0 ? 'up' : 'down');
+  const arcR = Math.abs(spec.arc) || Math.max(400, Math.round(textWidth / 10) * 10);
+  const setMode = (m: string) => {
+    if (m === 'circle') return void apply({ shape: 'circle' }, 'arcmode');
+    if (m === 'spiral') return void apply({ shape: 'spiral', arc: arcR }, 'arcmode');
+    void apply({ shape: undefined, arc: m === 'straight' ? 0 : (m === 'up' ? 1 : -1) * arcR }, 'arcmode');
+  };
 
   return (
     <div className="lettering" role="group" aria-label="Lettering">
@@ -179,22 +195,60 @@ export function LetteringSection({ o, units }: { o: StitchObject; units: Units }
         <LenRow label="Spacing" name="Letter spacing" value={spec.spacing} min={-50} max={200} step={1} units={units} onChange={(v) => void apply({ spacing: v }, `sp-${o.id}`)} />
       </div>
       <div className="prop-grid two">
-        <span className="prop-label">Baseline</span>
-        <SegmentedControl
-          label="Baseline"
-          grid
+        <label htmlFor="baseline" className="prop-label">
+          Baseline
+        </label>
+        <Select
+          id="baseline"
           value={arcMode}
-          onChange={(m) => void apply({ arc: m === 'straight' ? 0 : (m === 'up' ? 1 : -1) * (Math.abs(spec.arc) || Math.max(400, Math.round(textWidth / 10) * 10)) }, 'arcmode')}
+          onChange={setMode}
           options={[
             { value: 'straight', label: 'Straight' },
-            { value: 'up', label: 'Arc ↑' },
-            { value: 'down', label: 'Arc ↓' },
+            { value: 'up', label: 'Arc up' },
+            { value: 'down', label: 'Arc down' },
+            { value: 'circle', label: 'Circle' },
+            { value: 'spiral', label: 'Spiral' },
           ]}
         />
       </div>
-      {spec.arc !== 0 && (
+      {(arcMode === 'up' || arcMode === 'down' || arcMode === 'spiral') && (
         <div className="prop-grid">
-          <LenRow label="Radius" name="Arc radius" value={Math.abs(spec.arc)} min={150} max={3000} step={10} units={units} onChange={(v) => void apply({ arc: Math.sign(spec.arc) * v }, `arc-${o.id}`)} />
+          <LenRow
+            label="Radius"
+            name={arcMode === 'spiral' ? 'Spiral radius' : 'Arc radius'}
+            value={Math.abs(spec.arc)}
+            min={150}
+            max={3000}
+            step={10}
+            units={units}
+            onChange={(v) => void apply({ arc: (spec.arc < 0 ? -1 : 1) * v }, `arc-${o.id}`)}
+          />
+        </div>
+      )}
+      <div className="prop-grid two">
+        <label htmlFor="warp" className="prop-label">
+          Warp
+        </label>
+        <Select<TextWarp | 'none'>
+          id="warp"
+          value={spec.warp ?? 'none'}
+          options={WARPS}
+          onChange={(w) => void apply(w === 'none' ? { warp: undefined } : { warp: w, warpAmount: spec.warpAmount ?? 50 }, 'warp')}
+        />
+      </div>
+      {spec.warp && (
+        <div className="prop-grid">
+          <ParamRow
+            label="Amount"
+            value={spec.warpAmount ?? 50}
+            min={-100}
+            max={100}
+            step={5}
+            unit="%"
+            decimals={0}
+            numLabel="Warp amount in percent"
+            onChange={(v) => void apply({ warpAmount: Math.round(v) }, `warpamt-${o.id}`)}
+          />
         </div>
       )}
       {picker && (

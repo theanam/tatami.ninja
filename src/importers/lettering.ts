@@ -80,13 +80,17 @@ export function layoutText(font: Font, spec: TextSpec): Geometry {
     if (i + 1 < glyphs.length) x += font.getKerningValue(glyphs[i], glyphs[i + 1]) * scale;
   }
   const total = x - spec.spacing;
+  const shaped = !!(spec.arc || spec.shape || (spec.warp && spec.warpAmount !== 0));
+  const place = placer(spec, total, x);
   const rings: P[][] = [];
   glyphs.forEach((g, i) => {
     const d = commandsToPathData(g.getPath(xs[i] - total / 2, 0, fontSize).commands);
     if (!d) return;
     for (const sp of parsePath(d, 0.3)) {
       if (sp.points.length < 3) continue;
-      rings.push(simplifyRing(sp.points.map((p) => bend(p, spec.arc)), 0.3));
+      // Straight glyph edges must bend with the baseline, so split them before shaping.
+      const pts = shaped ? densify(sp.points, 5) : sp.points;
+      rings.push(simplifyRing(pts.map(place), 0.3));
     }
   });
   const areas = normalizeAreas(rings.map((r) => ({ outer: r, holes: [] })), 'nonzero');
@@ -116,6 +120,79 @@ export function commandsToPathData(cmds: PathCommand[]): string {
       }
     })
     .join('');
+}
+
+/** Split segments longer than `max` so a non-linear map keeps them smooth. */
+function densify(ring: P[], max: number): P[] {
+  const out: P[] = [];
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    out.push(a);
+    const n = Math.floor(Math.hypot(b[0] - a[0], b[1] - a[1]) / max);
+    for (let k = 1; k <= n; k++) out.push([a[0] + ((b[0] - a[0]) * k) / (n + 1), a[1] + ((b[1] - a[1]) * k) / (n + 1)]);
+  }
+  return out;
+}
+
+/**
+ * Envelope warp of straight text. `u` runs 0–1 across the text; y is negative above the
+ * baseline, and `h` is the cap height.
+ */
+export function warpPoint([x, y]: P, u: number, h: number, warp: TextSpec['warp'], amount: number): P {
+  const k = amount / 100;
+  const sinU = Math.sin(Math.PI * u);
+  switch (warp) {
+    case 'arch': // top bulges up, baseline stays
+      return [x, y * (1 + k * sinU)];
+    case 'peak': // top rises to a point in the middle
+      return [x, y * (1 + k * (1 - Math.abs(2 * u - 1)))];
+    case 'bulge': {
+      // grows from the middle line
+      const c = -h / 2;
+      return [x, c + (y - c) * (1 + k * sinU)];
+    }
+    case 'pinch': {
+      const c = -h / 2;
+      return [x, c + (y - c) * (1 - 0.6 * k * sinU)];
+    }
+    case 'wave':
+      return [x, y + 0.5 * k * h * Math.sin(2 * Math.PI * u)];
+    case 'rise':
+      return [x, y - k * h * u];
+    default:
+      return [x, y];
+  }
+}
+
+/** Map points of straight, centered text onto the spec's baseline and envelope. */
+function placer(spec: TextSpec, total: number, advance: number): (p: P) => P {
+  const h = spec.height;
+  const warp = spec.warp && (spec.warpAmount ?? 50) !== 0 ? spec.warp : undefined;
+  const amount = spec.warpAmount ?? 50;
+  const env = (p: P): P => (warp ? warpPoint(p, total > 0 ? (p[0] + total / 2) / total : 0.5, h, warp, amount) : p);
+  if (spec.shape === 'circle') {
+    // The circle's length is the text's full advance, so the end meets the start.
+    const R = Math.max(h, (advance + spec.spacing) / (2 * Math.PI));
+    return (p) => bend(env(p), R);
+  }
+  if (spec.shape === 'spiral') {
+    const R0 = Math.max(h * 2, Math.abs(spec.arc) || 300);
+    const pitch = h * 1.4;
+    return (p) => {
+      const [x, y] = env(p);
+      // Arc length ≈ ∫ r dt with r = R0 − pitch·t/2π; solve for the angle t at length x + total/2.
+      const s = x + total / 2;
+      const a = pitch / (4 * Math.PI);
+      const disc = R0 * R0 - 4 * a * s;
+      const t = disc > 0 ? (R0 - Math.sqrt(disc)) / (2 * a) : R0 / (2 * a);
+      const r = R0 - (pitch * t) / (2 * Math.PI) - y;
+      const t0 = total / 2 / R0; // center the start of the text at the top
+      const ang = t - t0;
+      return [r * Math.sin(ang), R0 - r * Math.cos(ang)];
+    };
+  }
+  return (p) => bend(env(p), spec.arc);
 }
 
 /** Map a point of straight text onto an arc of radius |arc| (positive bulges up). */

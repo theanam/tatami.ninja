@@ -4,7 +4,6 @@ import { geometryBounds, type P } from '../../engine/geom';
 import { MAX_OBJECT_SIZE } from '../../engine/plan';
 import { columnFromRails } from '../../engine/satin';
 import { defaultTextSpec, layoutText, loadSpecFont, makeTextObject } from '../../importers/lettering';
-import { ensureThread } from '../../model/project';
 import { deleteVertex, insertVertexAfter, listVertices, moveVertex, nearestSegment } from '../../model/nodes';
 import { objectsBounds, satinWidth, scaleObject, translateObject } from '../../model/transform';
 import type { Bounds, Pt, StitchObject } from '../../model/types';
@@ -369,16 +368,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const sel = useMemo(() => selectedObjects({ project, selection }), [project, selection]);
   const single = sel.length === 1 ? sel[0] : null;
 
-  const ensureActiveThread = (): string => {
-    const s = useEditor.getState();
-    const p = s.project!;
-    if (s.activeThread && p.threads.some((t) => t.id === s.activeThread)) return s.activeThread;
-    if (p.threads.length) return p.threads[0].id;
-    const res = ensureThread(p.threads, '#24357A', 'Navy');
-    s.update((pp) => ({ ...pp, threads: res.threads }));
-    s.setActiveThread(res.id);
-    return res.id;
-  };
+  const ensureActiveThread = () => useEditor.getState().ensureActiveThread();
 
   const commitObject = (o: StitchObject | null) => {
     if (!o) return;

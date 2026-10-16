@@ -120,7 +120,7 @@ test.describe('drawing tools', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('.canvas-cell').getByRole('toolbar')).toHaveCount(0);
     const toolbar = page.getByRole('region', { name: 'Properties' }).getByRole('group', { name: 'Lettering' });
-    await toolbar.getByRole('group', { name: 'Baseline' }).getByRole('button', { name: 'Arc ↑' }).click();
+    await toolbar.getByLabel('Baseline').selectOption('up');
     await expect(toolbar.getByLabel('Arc radius in millimetres')).toBeVisible();
     const h = toolbar.getByLabel('Letter height in millimetres');
     await h.fill('4');
@@ -250,5 +250,36 @@ test.describe('transforming lettering', () => {
     expect(after.x - box.x).toBeLessThan(85);
     expect(after.y - box.y).toBeGreaterThan(35);
     expect(after.y - box.y).toBeLessThan(45);
+  });
+});
+
+test.describe('lettering shapes and monograms', () => {
+  test('text can run around a circle or a spiral and be warped', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('t');
+    const c = await canvasCenter(page);
+    await page.mouse.click(c.x, c.y);
+    await page.keyboard.type('ROUND AND ROUND WE GO');
+    await page.keyboard.press('Enter');
+    const lettering = page.getByRole('region', { name: 'Properties' }).getByRole('group', { name: 'Lettering' });
+    const status = page.locator('.statusbar');
+    await lettering.getByLabel('Baseline').selectOption('circle');
+    await expect(lettering.getByLabel(/Arc radius/)).toHaveCount(0);
+    await lettering.getByLabel('Baseline').selectOption('spiral');
+    await expect(lettering.getByLabel('Spiral radius in millimetres')).toBeVisible();
+    await lettering.getByLabel('Warp').selectOption('arch');
+    await expect(lettering.getByLabel('Warp amount in percent')).toHaveValue('50');
+    await expect(status).toContainText(/[1-9][\d,]* stitches/);
+  });
+
+  test('the lettering tool builds a grouped three-letter monogram', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('t');
+    const opts = page.getByRole('region', { name: 'Monogram' }).or(page.locator('section').filter({ has: page.getByRole('heading', { name: 'Monogram' }) }));
+    await opts.getByLabel('Initials').fill('jdk');
+    await expect(opts.getByLabel('Initials')).toHaveValue('JDK');
+    await opts.getByRole('button', { name: 'Add monogram' }).click();
+    await expect(page.locator('.seq-list .row')).toHaveCount(3);
+    await expect(page.getByRole('button', { name: 'Ungroup (⇧⌘G)' })).toBeVisible();
   });
 });

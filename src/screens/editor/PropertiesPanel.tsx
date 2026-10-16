@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { NumberInput, ParamRow, SegmentedControl, Select, Switch } from '../../components/ui';
+import { NumberInput, ParamRow, SegmentedControl, Select, Switch, toast } from '../../components/ui';
 import { resolveParams } from '../../engine/objects';
 import { areasOf } from '../../engine/geom';
 import { objectsBounds, satinWidth } from '../../model/transform';
@@ -11,6 +11,7 @@ import { ThreadPicker } from '../../components/ThreadPicker';
 import { LenRow } from './PanelRows';
 import { gridSizes } from './snap';
 import { LetteringSection } from './TextTools';
+import { addMonogram, type MonogramStyle } from './textOps';
 import { selectedObjects, useEditor } from '../../store/editor';
 
 /** Settings of the selected object(s); nothing when nothing is selected. */
@@ -27,6 +28,7 @@ export function PropertiesPanel({ readOnly }: { readOnly: boolean }) {
 export function ToolOptions() {
   const tool = useEditor((s) => s.tool);
   const shapeKind = useEditor((s) => s.shapeKind);
+  if (tool === 'lettering') return <MonogramOptions />;
   if (tool !== 'shapes') return null;
   return (
     <section className="props tool-options" aria-labelledby="toolh">
@@ -58,6 +60,59 @@ const RUN_STYLES: { value: RunStyle; label: string }[] = [
   { value: 'e', label: 'E stitch' },
   { value: 'v', label: 'V stitch' },
 ];
+
+function MonogramOptions() {
+  const units = useEditor((s) => s.project!.units);
+  const [initials, setInitials] = useState('ABC');
+  const [style, setStyle] = useState<MonogramStyle>('classic');
+  const [height, setHeight] = useState(250);
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    setBusy(true);
+    try {
+      await addMonogram(initials, style, height);
+      useEditor.getState().setTool('select');
+    } catch {
+      toast('Could not load the lettering font.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="props tool-options" aria-labelledby="monoh">
+      <div className="panel-head inline">
+        <h2 id="monoh" className="label-caps">
+          Monogram
+        </h2>
+      </div>
+      <div className="props-body">
+        <div className="prop-grid two">
+          <label htmlFor="mono" className="prop-label">
+            Initials
+          </label>
+          <input id="mono" className="input" maxLength={3} value={initials} onChange={(e) => setInitials(e.target.value.toUpperCase())} onKeyDown={(e) => e.stopPropagation()} />
+          <span className="prop-label">Style</span>
+          <SegmentedControl<MonogramStyle>
+            label="Monogram style"
+            grid
+            value={style}
+            onChange={setStyle}
+            options={[
+              { value: 'classic', label: 'Classic' },
+              { value: 'block', label: 'Block' },
+            ]}
+          />
+        </div>
+        <div className="prop-grid">
+          <LenRow label="Height" name="Monogram height" value={height} min={60} max={1200} step={5} units={units} onChange={setHeight} />
+        </div>
+        <button className="btn block" disabled={busy || !initials.trim()} onClick={() => void add()}>
+          Add monogram
+        </button>
+      </div>
+    </section>
+  );
+}
 
 function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean }) {
   const project = useEditor((s) => s.project)!;

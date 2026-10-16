@@ -112,6 +112,8 @@ export interface EditorState {
   requestFit(): void;
   setEngineResult(plan: StitchPlan, warnings: Warning[], forProject?: Project | null): void;
   setActiveThread(id: string | null): void;
+  /** The thread new objects get: the active one, else the first, else a new navy thread. */
+  ensureActiveThread(): string;
   setComputing(c: boolean): void;
   setSaveState(s: 'saved' | 'saving'): void;
   setDialog(d: EditorState['dialog']): void;
@@ -299,6 +301,16 @@ export const useEditor = create<EditorState>((set, get) => {
     setEngineResult: (plan, warnings, forProject = get().project) =>
       set({ plan, warnings, planFor: forProject, dirtyIds: forProject === get().project ? [] : get().dirtyIds, computing: forProject !== get().project }),
     setActiveThread: (activeThread) => set({ activeThread }),
+    ensureActiveThread() {
+      const { project: p, activeThread } = get();
+      if (!p) return '';
+      if (activeThread && p.threads.some((t) => t.id === activeThread)) return activeThread;
+      if (p.threads.length) return p.threads[0].id;
+      const res = ensureThread(p.threads, '#24357A', 'Navy');
+      get().update((pp) => ({ ...pp, threads: res.threads }));
+      set({ activeThread: res.id });
+      return res.id;
+    },
     setComputing: (computing) => set({ computing }),
     setSaveState: (saveState) => set({ saveState }),
     setDialog: (dialog) => set(dialog === null ? { dialog, traceSource: null } : { dialog }),
