@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { alignObjects, backgroundObject, circleCopies, distributeObjects, echoObject, flipObject, gridCopies, type AlignTo, type BackgroundKind, type FlipAxis } from '../model/arrange';
+import { alignObjects, backgroundObject, circleCopies, distributeObjects, echoObject, flipObject, gridCopies, regionToLines, type AlignTo, type BackgroundKind, type FlipAxis } from '../model/arrange';
 import { booleanAreas, offsetAreas, type BoolOp } from '../engine/clip';
 import { areasOf, unionBounds, type Area } from '../engine/geom';
 import type { Warning } from '../engine/warnings';
@@ -151,6 +151,7 @@ export interface EditorState {
   copyAroundCircle(count: number, radius: number): void;
   copyInGrid(rows: number, cols: number, gapX: number, gapY: number): void;
   addEcho(count: number, spacing: number): void;
+  regionToLine(id: string, spacing: number): void;
   addBackground(kind: BackgroundKind, margin: number): void;
   scaleToFitHoop(): void;
   autoOrderByColor(): void;
@@ -499,6 +500,22 @@ export const useEditor = create<EditorState>((set, get) => {
         return { ...p, objects };
       }, { dirty: [echo.id] });
       set({ selection: [echo.id] });
+    },
+
+    regionToLine(id, spacing) {
+      const o = get().project?.objects.find((x) => x.id === id);
+      if (!o || o.locked) return;
+      const lines = regionToLines(o, spacing);
+      if (!lines.length) return;
+      const group = lines.length > 1 ? newId('g') : undefined;
+      const repl = lines.map((l) => ({ ...l, group }));
+      get().update((p) => {
+        const i = p.objects.findIndex((x) => x.id === id);
+        const objects = [...p.objects];
+        objects.splice(i, 1, ...repl);
+        return { ...p, objects };
+      }, { dirty: repl.map((l) => l.id) });
+      set({ selection: repl.map((l) => l.id) });
     },
 
     addBackground(kind, margin) {

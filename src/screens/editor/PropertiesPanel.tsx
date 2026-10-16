@@ -404,6 +404,11 @@ function AdvancedSection({ o }: { o: StitchObject }) {
             Add outline (run, 0.5 mm outside)
           </button>
         )}
+        {closed && !o.text && (
+          <button className="btn small" onClick={() => s.regionToLine(o.id, 30)}>
+            Region to line (spiral)
+          </button>
+        )}
       </div>
     </div>
   );
@@ -638,6 +643,12 @@ export function DesignSection() {
             Speed
           </label>
           <NumberInput id="spm" label="Machine speed in stitches per minute" value={project.spm ?? 800} decimals={0} min={100} max={1500} unit="spm" onChange={(v) => s.setProjectFields({ spm: Math.round(v) })} />
+          <label htmlFor="hidden" className="prop-label">
+            Hidden stitches
+          </label>
+          <div className="grid-row">
+            <Switch id="hidden" label="Remove hidden stitches" checked={!!project.removeHidden} onChange={(v) => s.setProjectFields({ removeHidden: v })} />
+          </div>
           <label htmlFor="gridsize" className="prop-label">
             Grid
           </label>

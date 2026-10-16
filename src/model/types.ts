@@ -165,6 +165,8 @@ export interface Project {
   threads: Thread[];
   objects: StitchObject[];
   backdrop?: Backdrop | null;
+  /** Cut fills where later objects sew over them. */
+  removeHidden?: boolean;
   /** Machine speed used for sew-time estimates (stitches per minute). */
   spm?: number;
   /** 'stitch-file' projects come from an opened DST/PES: recolor only. */

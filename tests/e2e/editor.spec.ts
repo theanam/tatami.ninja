@@ -380,3 +380,23 @@ test('quilting: stipple fill, echo lines and a background around the design', as
   await expect(page.locator('.seq-list .row').first()).toContainText('Background (echo)');
   await expect(page.locator('.statusbar')).toContainText(/[1-9][\d,]* stitches/);
 });
+
+test('region to line turns a fill into a spiral run line', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').filter({ hasText: 'Star' }).click();
+  await page.getByRole('button', { name: /^Advanced/ }).click();
+  await page.getByRole('button', { name: 'Region to line (spiral)' }).click();
+  await expect(page.locator('.seq-list .row').filter({ hasText: 'Star line' })).toHaveCount(1);
+  await expect(page.getByLabel('Style', { exact: true })).toBeVisible();
+  await page.getByLabel('Style', { exact: true }).selectOption('chain');
+});
+
+test('removing hidden stitches is a design setting', async ({ page }) => {
+  await openSample(page);
+  const sw = page.getByRole('switch', { name: 'Remove hidden stitches' });
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  const before = await stitchTotal(page);
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(() => stitchTotal(page)).not.toBe(before);
+});

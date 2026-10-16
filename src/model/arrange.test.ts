@@ -104,3 +104,22 @@ describe('quilting objects', () => {
     expect(Math.max(...xs)).toBeGreaterThanOrEqual(79);
   });
 });
+
+describe('region to line', () => {
+  it('turns a filled shape into one inward spiral run', async () => {
+    const { regionToLines } = await import('./arrange');
+    const [line, ...rest] = regionToLines(box('a', 0, 0, 300, 300), 30);
+    expect(rest).toHaveLength(0);
+    expect(line.type).toBe('run');
+    expect(line.geometry.kind).toBe('polyline');
+    if (line.geometry.kind !== 'polyline') return;
+    const pts = line.geometry.points;
+    // Starts on the outside ring, ends near the middle.
+    const first = pts[0];
+    const last = pts[pts.length - 1];
+    const d = (p: number[]) => Math.max(Math.abs(p[0] - 150), Math.abs(p[1] - 150));
+    expect(d(first)).toBeGreaterThan(120);
+    expect(d(last)).toBeLessThan(40);
+    expect(pts.every((p) => p[0] >= 0 && p[0] <= 300 && p[1] >= 0 && p[1] <= 300)).toBe(true);
+  });
+});

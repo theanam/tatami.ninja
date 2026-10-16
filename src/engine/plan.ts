@@ -1,5 +1,6 @@
 import { CMD, type Bounds, type ObjectStat, type Project, type StitchObject, type StitchPlan } from '../model/types';
 import { dist, geometryBounds, norm, sub, type P } from './geom';
+import { removeHiddenStitches } from './hidden';
 import { generateObject, resolveParams, type Piece } from './objects';
 
 /** Moves up to this length are sewn as a stitch instead of a jump (0.1 mm). */
@@ -100,7 +101,8 @@ export function generatePlan(project: Project): StitchPlan {
   let currentThread: string | null = null;
   let pendingTrim = false;
 
-  project.objects.forEach((obj, index) => {
+  const sewn = project.removeHidden ? removeHiddenStitches(project.objects) : project.objects;
+  sewn.forEach((obj, index) => {
     const startCmd = b.cmds.length;
     if (obj.visible && (truncated || tooLarge(obj, project.fabricPreset))) {
       if (!truncated) skipped.push(obj.id);

@@ -209,3 +209,63 @@ export function backgroundObject(objs: StitchObject[], hoop: { width: number; he
     advanced: { underlay: 'none' },
   };
 }
+
+/**
+ * Region to line: each part of a filled shape becomes one continuous inward spiral (a run
+ * line), so it can be sewn with any run style (chain, stem, motif…).
+ */
+export function regionToLines(o: StitchObject, spacing: number): StitchObject[] {
+  const out: StitchObject[] = [];
+  for (const part of normalizeAreas(areasOf(o.geometry))) {
+    const line = spiralOf(part, spacing);
+    if (line.length < 2) continue;
+    out.push({
+      ...o,
+      id: newId('o'),
+      name: `${o.name} line`,
+      type: 'run',
+      geometry: { kind: 'polyline', points: toPts(line) },
+      params: { stitchLength: 25, runStyle: 'single' },
+      advanced: { tieIn: true, tieOff: true },
+      text: undefined,
+      group: undefined,
+    });
+  }
+  return out;
+}
+
+/** Inward offset rings joined into one spiral path. */
+function spiralOf(area: Area, spacing: number): [number, number][] {
+  const rings: [number, number][][] = [];
+  let cur = offsetAreas([area], -spacing / 2);
+  for (let k = 0; cur.length && k < 300; k++) {
+    // Follow the largest part inward; side pockets are left to the outline.
+    const main = cur.reduce((a, b) => (ringLen(b.outer) > ringLen(a.outer) ? b : a));
+    rings.push(main.outer);
+    cur = offsetAreas([main], -spacing);
+  }
+  const path: [number, number][] = [];
+  let at: [number, number] | null = null;
+  for (const ring of rings) {
+    let start = 0;
+    if (at) {
+      let bd = Infinity;
+      ring.forEach((p, i) => {
+        const d = Math.hypot(p[0] - at![0], p[1] - at![1]);
+        if (d < bd) [bd, start] = [d, i];
+      });
+    }
+    const rot = [...ring.slice(start), ...ring.slice(0, start)];
+    // Stop a little short of closing so the step to the next ring does not cross this one.
+    const keep = rot.slice(0, Math.max(2, rot.length - Math.max(1, Math.round(rot.length * 0.04))));
+    path.push(...keep);
+    at = keep[keep.length - 1];
+  }
+  return path;
+}
+
+function ringLen(r: [number, number][]) {
+  let s = 0;
+  for (let i = 1; i < r.length; i++) s += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]);
+  return s;
+}
