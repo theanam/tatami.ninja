@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { offsetAreas } from '../../engine/clip';
 import { areasOf, pathsOf, principalAngle, type P } from '../../engine/geom';
 import { resolveParams } from '../../engine/objects';
+import { OPEN_PATTERNS, patternLines } from '../../engine/patterns';
 import { columnFromPath, columnFromRails } from '../../engine/satin';
 import type { StitchObject } from '../../model/types';
 import { geometryPath } from './canvasMath';
@@ -52,6 +53,15 @@ export const ObjectArt = memo(function ObjectArt({
     }
     return out;
   }, [o.type, g, r.contourSpacing]);
+
+  const pattern = useMemo(() => {
+    if (o.type !== 'tatami' || r.fillPattern === 'rows') return '';
+    const open = OPEN_PATTERNS.includes(r.fillPattern);
+    const spacing = open ? r.patternSpacing : Math.max(10, r.rowSpacing * 5);
+    return patternLines(areasOf(g), { pattern: r.fillPattern, spacing, angleDeg: r.angleDeg })
+      .map((l) => `M${l.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('L')}`)
+      .join('');
+  }, [o.type, g, r.fillPattern, r.patternSpacing, r.rowSpacing, r.angleDeg]);
 
   const satin = useMemo(() => {
     if (o.type !== 'satin' && o.type !== 'applique') return null;
@@ -154,6 +164,18 @@ export const ObjectArt = memo(function ObjectArt({
         </pattern>
         <path d={d} fill={color} fillRule="evenodd" />
         <path d={d} fill={`url(#${pid}-sat)`} fillRule="evenodd" />
+      </g>
+    );
+  }
+
+  if (pattern) {
+    return (
+      <g data-type="tatami" data-pattern={r.fillPattern}>
+        <clipPath id={`${pid}-clip`}>
+          <path d={d} fillRule="evenodd" />
+        </clipPath>
+        <path d={d} fill={color} fillRule="evenodd" />
+        <path d={pattern} fill="none" stroke={LINE} strokeWidth={1} vectorEffect="non-scaling-stroke" clipPath={`url(#${pid}-clip)`} />
       </g>
     );
   }

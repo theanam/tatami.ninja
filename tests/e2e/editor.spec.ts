@@ -334,3 +334,18 @@ test('run objects can use decorative styles (candlewick shows knot settings)', a
   await expect(page.getByLabel('Knot spacing', { exact: false })).toHaveCount(0);
   await expect(page.getByLabel(/Stitch width/).first()).toBeVisible();
 });
+
+test('fill patterns: radial, net and random shift', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').filter({ hasText: 'Badge fill' }).click();
+  await expect(page.getByLabel('Random shift')).toBeVisible();
+  const before = await stitchTotal(page);
+  await page.getByLabel('Pattern').selectOption('radial');
+  await expect(page.locator('[data-pattern="radial"]')).toHaveCount(1);
+  await expect(page.getByLabel('Angle in degrees')).toHaveCount(0);
+  await expect.poll(() => stitchTotal(page)).not.toBe(before);
+  await page.getByLabel('Pattern').selectOption('net');
+  await expect(page.getByLabel('Pattern spacing in millimetres')).toBeVisible();
+  await expect(page.getByLabel('Random shift')).toHaveCount(0);
+  await expect.poll(() => stitchTotal(page)).toBeLessThan(before);
+});

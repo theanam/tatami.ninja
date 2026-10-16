@@ -23,6 +23,8 @@ export type Geometry =
   /** Raw stitches from an opened stitch file: flat [x, y, cmd, x, y, cmd, …]. */
   | { kind: 'stitches'; data: number[] };
 
+export type FillPattern = 'rows' | 'radial' | 'spiral' | 'circles' | 'net' | 'zigzag-net' | 'cross';
+
 export type RunStyle = 'single' | 'triple' | 'stem' | 'chain' | 'candlewick' | 'e' | 'v';
 
 export type StitchType = 'run' | 'satin' | 'tatami' | 'contour' | 'applique' | 'stitches';
@@ -39,6 +41,12 @@ export type UnderlayType =
 export interface ObjectParams {
   /** Tatami fill angle in degrees. */
   angleDeg?: number;
+  /** Fill pattern for tatami objects (default: rows). */
+  fillPattern?: FillPattern;
+  /** Line spacing of open patterns (net, zigzag net, cross), 0.1 mm. */
+  patternSpacing?: number;
+  /** Tatami: random stitch offsets per row instead of the regular brick (hides lines). */
+  randomShift?: boolean;
   /** Tatami row spacing (0.1 mm). */
   rowSpacing?: number;
   /** Stitch length (0.1 mm) for run and tatami. */

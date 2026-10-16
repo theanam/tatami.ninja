@@ -14,6 +14,8 @@ export interface FillOptions {
   /** Satin mode: split stitches wider than this. */
   splitAbove?: number;
   startNear?: P | null;
+  /** Random (but repeatable) stitch offsets per row instead of the regular brick pattern. */
+  randomShift?: boolean;
 }
 
 interface Seg {
@@ -156,7 +158,7 @@ export function fillAreas(areas: Area[], opts: FillOptions): P[][] {
         else if (group.length === 0 || dist(group[group.length - 1], pts[0]) > 0.5) group.push(pts[0]);
       }
     } else {
-      for (const c of chain) group.push(...rowStitches(c.from, c.to, c.seg.y, c.seg.row, L));
+      for (const c of chain) group.push(...rowStitches(c.from, c.to, c.seg.y, c.seg.row, L, opts.randomShift));
     }
   }
   if (group.length) groups.push(group);
@@ -164,11 +166,11 @@ export function fillAreas(areas: Area[], opts: FillOptions): P[][] {
 }
 
 /** Stitch points across one tatami row with a brick offset between rows. */
-export function rowStitches(from: number, to: number, y: number, row: number, L: number): P[] {
+export function rowStitches(from: number, to: number, y: number, row: number, L: number, random = false): P[] {
   const out: P[] = [[from, y]];
   const lo = Math.min(from, to);
   const hi = Math.max(from, to);
-  const off = (((row % 2) + 2) % 2) * (L / 2);
+  const off = random ? rowNoise(row) * L : (((row % 2) + 2) % 2) * (L / 2);
   const minGap = L * 0.3;
   const xs: number[] = [];
   let k = Math.ceil((lo + minGap - off) / L);
@@ -177,6 +179,12 @@ export function rowStitches(from: number, to: number, y: number, row: number, L:
   for (const x of xs) out.push([x, y]);
   out.push([to, y]);
   return out;
+}
+
+/** Repeatable pseudo-random 0–1 per row. */
+function rowNoise(row: number): number {
+  const x = Math.sin(row * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
 }
 
 /** Split a long stitch into equal parts; odd stitches get a staggered split point. */

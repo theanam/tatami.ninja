@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { NumberInput, ParamRow, SegmentedControl, Select, Switch, toast } from '../../components/ui';
 import { resolveParams } from '../../engine/objects';
+import { OPEN_PATTERNS } from '../../engine/patterns';
 import { areasOf } from '../../engine/geom';
 import { objectsBounds, satinWidth } from '../../model/transform';
-import type { RunStyle, StitchObject, StitchType, UnderlayType } from '../../model/types';
+import type { FillPattern, RunStyle, StitchObject, StitchType, UnderlayType } from '../../model/types';
 import { fmtLen, fromDisplay, toDisplay } from '../../model/units';
 import { FABRICS, HOOPS, hoopLabel, MACHINES, UNDERLAY_OPTIONS } from '../../presets';
 import { ThreadPicker } from '../../components/ThreadPicker';
@@ -50,6 +51,16 @@ export function ToolOptions() {
     </section>
   );
 }
+
+const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
+  { value: 'rows', label: 'Tatami rows' },
+  { value: 'radial', label: 'Radial' },
+  { value: 'spiral', label: 'Spiral' },
+  { value: 'circles', label: 'Concentric circles' },
+  { value: 'net', label: 'Net' },
+  { value: 'zigzag-net', label: 'Zigzag net' },
+  { value: 'cross', label: 'Cross-hatch' },
+];
 
 const RUN_STYLES: { value: RunStyle; label: string }[] = [
   { value: 'single', label: 'Single' },
@@ -169,21 +180,35 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
         />
         {o.text && <LetteringSection o={o} units={units} />}
         <ThreadRow ids={ids} value={o.thread} />
+        {o.type === 'tatami' && (
+          <div className="prop-grid two">
+            <label htmlFor="pattern" className="prop-label">
+              Pattern
+            </label>
+            <Select<FillPattern> id="pattern" value={r.fillPattern} options={FILL_PATTERNS} onChange={(v) => s.setParams(ids, { fillPattern: v })} />
+          </div>
+        )}
         <div className="prop-grid">
           {o.type === 'tatami' && (
             <>
-              <ParamRow
-                label="Angle"
-                value={r.angleDeg}
-                min={0}
-                max={180}
-                step={1}
-                unit="°"
-                decimals={0}
-                numLabel="Angle in degrees"
-                onChange={(v) => s.setParams(ids, { angleDeg: Math.round(v) }, 'angle')}
-              />
-              <LenRow label="Density" name="Row spacing" value={r.rowSpacing} min={2} max={10} step={0.5} units={units} onChange={(v) => s.setParams(ids, { rowSpacing: v }, 'rowSpacing')} />
+              {(r.fillPattern === 'rows' || OPEN_PATTERNS.includes(r.fillPattern)) && (
+                <ParamRow
+                  label="Angle"
+                  value={r.angleDeg}
+                  min={0}
+                  max={180}
+                  step={1}
+                  unit="°"
+                  decimals={0}
+                  numLabel="Angle in degrees"
+                  onChange={(v) => s.setParams(ids, { angleDeg: Math.round(v) }, 'angle')}
+                />
+              )}
+              {OPEN_PATTERNS.includes(r.fillPattern) ? (
+                <LenRow label="Spacing" name="Pattern spacing" value={r.patternSpacing} min={10} max={100} step={1} units={units} onChange={(v) => s.setParams(ids, { patternSpacing: v }, 'patternSpacing')} />
+              ) : (
+                <LenRow label="Density" name="Row spacing" value={r.rowSpacing} min={2} max={10} step={0.5} units={units} onChange={(v) => s.setParams(ids, { rowSpacing: v }, 'rowSpacing')} />
+              )}
               <LenRow label="Stitch length" name="Stitch length" value={r.stitchLength} min={10} max={70} step={1} units={units} onChange={(v) => s.setParams(ids, { stitchLength: v }, 'stitchLength')} />
             </>
           )}
@@ -246,6 +271,14 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
               </div>
             )}
           </>
+        )}
+        {o.type === 'tatami' && r.fillPattern === 'rows' && (
+          <div className="prop-line">
+            <label className="prop-label" htmlFor="rshift">
+              Random shift
+            </label>
+            <Switch id="rshift" label="Random shift" checked={r.randomShift} onChange={(v) => s.setParams(ids, { randomShift: v })} />
+          </div>
         )}
         {o.type === 'satin' && (
           <>

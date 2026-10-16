@@ -1,9 +1,10 @@
-import type { RunStyle, StitchObject, UnderlayType } from '../model/types';
+import type { FillPattern, RunStyle, StitchObject, UnderlayType } from '../model/types';
 import { getFabric, type FabricPreset } from '../presets';
 import { offsetAreas } from './clip';
 import { contourFill } from './contour';
 import { fillAreas } from './fill';
 import { areasOf, pathsOf, principalAngle, type Area, type P } from './geom';
+import { OPEN_PATTERNS, patternFill } from './patterns';
 import { runStitches } from './run';
 import { styledRun } from './runStyles';
 import {
@@ -23,6 +24,9 @@ export type Piece = { pts: P[]; underlay?: boolean } | { stop: true };
 
 export interface ResolvedParams {
   angleDeg: number;
+  fillPattern: FillPattern;
+  patternSpacing: number;
+  randomShift: boolean;
   rowSpacing: number;
   stitchLength: number;
   repeats: number;
@@ -49,9 +53,16 @@ export function resolveParams(obj: StitchObject, fabricId: string): ResolvedPara
   const a = obj.advanced ?? {};
   const isSatin = obj.type === 'satin' || obj.type === 'applique';
   const defaultUnderlay: UnderlayType =
-    obj.type === 'run' || obj.type === 'stitches' ? 'none' : isSatin ? f.satinUnderlay : f.fillUnderlay;
+    obj.type === 'run' || obj.type === 'stitches' || (obj.type === 'tatami' && OPEN_PATTERNS.includes(p.fillPattern ?? 'rows'))
+      ? 'none'
+      : isSatin
+        ? f.satinUnderlay
+        : f.fillUnderlay;
   return {
     angleDeg: p.angleDeg ?? 45,
+    fillPattern: p.fillPattern ?? 'rows',
+    patternSpacing: p.patternSpacing ?? 30,
+    randomShift: p.randomShift ?? false,
     rowSpacing: p.rowSpacing ?? f.rowSpacing,
     stitchLength: p.stitchLength ?? (obj.type === 'run' ? 25 : obj.type === 'contour' ? 25 : 35),
     repeats: p.repeats ?? 1,
@@ -99,8 +110,17 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
       const under = fillUnderlay(areas, r, entry);
       const last = lastPoint(under) ?? entry;
       const top =
-        obj.type === 'tatami'
+        obj.type === 'tatami' && r.fillPattern !== 'rows'
+          ? patternFill(areas, {
+              pattern: r.fillPattern,
+              spacing: OPEN_PATTERNS.includes(r.fillPattern) ? r.patternSpacing : r.rowSpacing,
+              stitchLen: r.stitchLength,
+              angleDeg: r.angleDeg,
+              startNear: last,
+            })
+          : obj.type === 'tatami'
           ? fillAreas(areas, {
+              randomShift: r.randomShift,
               angleDeg: r.angleDeg,
               spacing: r.rowSpacing,
               stitchLen: r.stitchLength,

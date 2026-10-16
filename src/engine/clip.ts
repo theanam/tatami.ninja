@@ -91,3 +91,16 @@ function ringArea(pts: P[]): number {
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1];
   return a / 2;
 }
+
+/** Clip open polylines to areas; returns the pieces that lie inside. */
+export function clipLines(lines: P[][], areas: Area[]): P[][] {
+  if (!lines.length || !areas.length) return [];
+  // AddPath / OpenPathsFromPolyTree exist in clipper-lib but are missing from its typings.
+  const c = new ClipperLib.Clipper() as InstanceType<typeof ClipperLib.Clipper> & { AddPath(p: CPath, t: number, closed: boolean): boolean };
+  for (const l of lines) if (l.length >= 2) c.AddPath(toPath(l), ClipperLib.PolyType.ptSubject, false);
+  c.AddPaths(areasToPaths(normalizeAreas(areas)), ClipperLib.PolyType.ptClip, true);
+  const tree = new ClipperLib.PolyTree();
+  c.Execute(ClipperLib.ClipType.ctIntersection, tree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  const open = (ClipperLib.Clipper as unknown as { OpenPathsFromPolyTree(t: unknown): CPath[] }).OpenPathsFromPolyTree(tree);
+  return open.map(fromPath).filter((l) => l.length >= 2);
+}
