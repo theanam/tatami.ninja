@@ -57,7 +57,7 @@ export function ThreadStrip() {
             </button>
             {!simActive && (
               <>
-                <IconButton icon="pen" label={`Edit ${t.name}`} size="xs" tipSide="top" className="chip-act" onClick={() => setEditing({ id: t.id, removing: false })} />
+                <IconButton icon="edit" label={`Edit ${t.name}`} size="xs" tipSide="top" className="chip-act" onClick={() => setEditing({ id: t.id, removing: false })} />
                 <IconButton
                   icon="close"
                   label={`Remove ${t.name}`}

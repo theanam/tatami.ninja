@@ -324,7 +324,7 @@ function LetteringNote({ o }: { o: StitchObject }) {
         Lettering: double-click the text on the canvas (or press Enter) to type. Font, size, spacing and arc are in the toolbar above the text.
       </p>
       <button className="btn small" disabled={o.locked} onClick={() => useEditor.getState().setEditingText(o.id)}>
-        <Icon name="pen" small />
+        <Icon name="edit" small />
         Edit text on canvas
       </button>
     </div>

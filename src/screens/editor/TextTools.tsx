@@ -248,7 +248,7 @@ export function TextToolbar({ o, v, units, editing, onEdit }: { o: StitchObject;
       )}
       {!editing && (
         <button className="btn tt-edit" onClick={onEdit} title="Edit text (double-click the text, or press Enter)">
-          <Icon name="pen" small />
+          <Icon name="edit" small />
           Edit text
         </button>
       )}
