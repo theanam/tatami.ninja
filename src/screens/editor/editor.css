@@ -297,7 +297,7 @@
 .fp-cat { font-size: var(--sb-fs-label); color: var(--sb-text-faint); flex: none; }
 .fp-row.on .fp-cat { color: var(--sb-handle-light); }
 .fp-empty { padding: 16px 10px; color: var(--sb-text-muted); }
-.fp-foot { padding: 8px 12px; border-top: 1px solid var(--sb-border-subtle); }
+.fp-foot { padding: 8px 12px; border-top: 1px solid var(--sb-border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 .seq-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .seq > .panel-head { flex-wrap: wrap; }

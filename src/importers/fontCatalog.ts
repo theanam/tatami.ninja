@@ -4,7 +4,7 @@
  * (opentype.js reads WOFF); picker previews come from the Google Fonts css2 API with `text=`.
  */
 
-export type FontCategory = 'builtin' | 'sans' | 'serif' | 'display' | 'script' | 'mono';
+export type FontCategory = 'builtin' | 'mine' | 'sans' | 'serif' | 'display' | 'script' | 'mono';
 
 export interface FontEntry {
   /** `geist` for built-ins, `gf:open-sans` for Google Fonts. */
@@ -27,6 +27,7 @@ export const BUILTIN_FONTS: FontEntry[] = [
 export const FONT_CATEGORIES: { id: 'all' | FontCategory; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'builtin', label: 'Built-in' },
+  { id: 'mine', label: 'Yours' },
   { id: 'sans', label: 'Sans' },
   { id: 'serif', label: 'Serif' },
   { id: 'display', label: 'Display' },
@@ -105,9 +106,9 @@ export function previewCssUrl(entry: FontEntry, text = entry.family): string {
 export function fontDisplayName(id: string, catalog?: FontEntry[] | null): string {
   const hit = catalog?.find((f) => f.id === id) ?? BUILTIN_FONTS.find((f) => f.id === id);
   if (hit) return hit.family;
-  if (isGoogleFont(id)) {
+  if (isGoogleFont(id) || id.startsWith('user:')) {
     return id
-      .slice(3)
+      .slice(id.indexOf(':') + 1)
       .split('-')
       .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
       .join(' ');
@@ -145,7 +146,8 @@ export function ensureCssFont(id: string, weight?: number): Promise<string> {
     const name = `tn-${key.replace(/[^a-z0-9]/gi, '-')}`;
     p = (async () => {
       if (typeof FontFace === 'undefined' || typeof document === 'undefined') return name;
-      const face = new FontFace(name, `url(${fontFileUrl(id, weight)})`, { display: 'block' });
+      const src = id.startsWith('user:') ? await (await import('./userFonts')).userFontBytes(id) : `url(${fontFileUrl(id, weight)})`;
+      const face = new FontFace(name, src, { display: 'block' });
       await face.load();
       document.fonts.add(face);
       return name;
@@ -160,7 +162,7 @@ const previewLinks = new Set<string>();
 
 /** Load a picker preview (only the letters of the family name) via the css2 API. */
 export function loadPreview(entry: FontEntry): string {
-  if (entry.category === 'builtin') {
+  if (entry.category === 'builtin' || entry.category === 'mine') {
     void ensureCssFont(entry.id, entry.weights[0]);
     return `tn-${`${entry.id}@${entry.weights[0]}`.replace(/[^a-z0-9]/gi, '-')}`;
   }

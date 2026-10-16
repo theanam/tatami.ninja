@@ -11,10 +11,13 @@ import {
   type FontEntry,
 } from '../../importers/fontCatalog';
 import { fmtInt } from '../../model/units';
+import { toast } from '../../components/ui';
+import { pickFile } from '../../importers/files';
+import { addUserFont, USER_FONT_ACCEPT, userFontEntries } from '../../importers/userFonts';
 
 const ROW = 38;
 const VIEW = 342;
-const CAT_LABEL: Record<FontCategory, string> = { builtin: 'built-in', sans: 'sans', serif: 'serif', display: 'display', script: 'script', mono: 'mono' };
+const CAT_LABEL: Record<FontCategory, string> = { builtin: 'built-in', mine: 'yours', sans: 'sans', serif: 'serif', display: 'display', script: 'script', mono: 'mono' };
 
 /**
  * Popover listing every Google Font (plus the bundled ones), each set in its own face.
@@ -39,13 +42,27 @@ export function FontPicker({
   const listRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
+  const [mine, setMine] = useState<FontEntry[]>([]);
   useEffect(() => {
     let alive = true;
     void loadCatalog().then((c) => alive && setCatalog(c));
+    void userFontEntries().then((m) => alive && setMine(m));
     return () => {
       alive = false;
     };
   }, []);
+
+  const addFont = async () => {
+    const f = await pickFile(USER_FONT_ACCEPT);
+    if (!f) return;
+    try {
+      const entry = await addUserFont(f);
+      setMine(await userFontEntries());
+      onPick(entry);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    }
+  };
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -55,7 +72,7 @@ export function FontPicker({
     return () => document.removeEventListener('mousedown', close);
   }, [onClose]);
 
-  const list = useMemo(() => filterFonts(catalog ?? BUILTIN_FONTS, q, cat), [catalog, q, cat]);
+  const list = useMemo(() => filterFonts([...mine, ...(catalog ?? BUILTIN_FONTS)], q, cat), [mine, catalog, q, cat]);
 
   // Start scrolled to the current font when nothing is filtered.
   useEffect(() => {
@@ -158,7 +175,12 @@ export function FontPicker({
           </div>
         )}
       </div>
-      <div className="fp-foot meta">{catalog && catalog.length > BUILTIN_FONTS.length ? 'Google Fonts load when you pick them. Built-in fonts also work offline.' : 'Loading the Google Fonts list…'}</div>
+      <div className="fp-foot meta">
+        <span>{catalog && catalog.length > BUILTIN_FONTS.length ? 'Google Fonts load when you pick them.' : 'Loading the Google Fonts list…'}</span>
+        <button className="btn small" onClick={() => void addFont()}>
+          <Icon name="plus" small /> Add font file…
+        </button>
+      </div>
     </div>,
     document.body,
   );

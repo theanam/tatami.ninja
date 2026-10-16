@@ -5,6 +5,7 @@ import { newId } from '../model/project';
 import type { Geometry, Pt, StitchObject, TextSpec } from '../model/types';
 import { BUILTIN_FONTS, fontFileUrl, isGoogleFont } from './fontCatalog';
 import { parsePath, simplifyRing } from './svgPath';
+import { isUserFont, userFontBytes } from './userFonts';
 
 export interface LetteringFont {
   id: string;
@@ -28,12 +29,12 @@ const cache = new Map<string, Promise<Font>>();
  * Fontsource. Unknown ids fall back to the first built-in. Works under any Pages base path.
  */
 export function loadFont(id: string, fetcher: (url: string) => Promise<ArrayBuffer> = defaultFetch, weight?: number): Promise<Font> {
-  const fid = isGoogleFont(id) || BUILTIN_FONTS.some((f) => f.id === id) ? id : BUILTIN_FONTS[0].id;
+  const fid = isGoogleFont(id) || isUserFont(id) || BUILTIN_FONTS.some((f) => f.id === id) ? id : BUILTIN_FONTS[0].id;
   const w = isGoogleFont(fid) ? weight ?? 400 : undefined;
   const key = `${fid}@${w ?? ''}`;
   let p = cache.get(key);
   if (!p) {
-    p = fetcher(fontFileUrl(fid, w)).then((buf) => parse(buf));
+    p = (isUserFont(fid) ? userFontBytes(fid) : fetcher(fontFileUrl(fid, w))).then((buf) => parse(buf));
     p.catch(() => cache.delete(key));
     cache.set(key, p);
   }

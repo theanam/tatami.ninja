@@ -21,19 +21,30 @@ interface Schema extends DBSchema {
   projects: { key: string; value: ProjectRecord; indexes: { updatedAt: number } };
   /** File System Access handles of saved/opened .xtatami files, by project id. */
   handles: { key: string; value: unknown };
+  /** Font files the user added for lettering. */
+  fonts: { key: string; value: UserFontRecord };
+}
+
+export interface UserFontRecord {
+  /** `user:<slug>` */
+  id: string;
+  family: string;
+  data: ArrayBuffer;
+  addedAt: number;
 }
 
 let dbPromise: Promise<IDBPDatabase<Schema>> | null = null;
 
 function db() {
   if (!dbPromise) {
-    dbPromise = openDB<Schema>('tatami-ninja', 2, {
+    dbPromise = openDB<Schema>('tatami-ninja', 3, {
       upgrade(d, oldVersion) {
         if (oldVersion < 1) {
           const store = d.createObjectStore('projects', { keyPath: 'id' });
           store.createIndex('updatedAt', 'updatedAt');
         }
         if (oldVersion < 2) d.createObjectStore('handles');
+        if (oldVersion < 3) d.createObjectStore('fonts', { keyPath: 'id' });
       },
     });
   }
@@ -96,4 +107,21 @@ export async function putFileHandle(projectId: string, handle: unknown) {
 export async function getFileHandle(projectId: string): Promise<unknown> {
   const d = await db();
   return d.get('handles', projectId);
+}
+
+export async function putUserFont(rec: UserFontRecord) {
+  await (await db()).put('fonts', rec);
+}
+
+export async function getUserFont(id: string): Promise<UserFontRecord | undefined> {
+  return (await db()).get('fonts', id);
+}
+
+export async function listUserFonts(): Promise<UserFontRecord[]> {
+  const all = await (await db()).getAll('fonts');
+  return all.sort((a, b) => a.family.localeCompare(b.family));
+}
+
+export async function deleteUserFont(id: string) {
+  await (await db()).delete('fonts', id);
 }

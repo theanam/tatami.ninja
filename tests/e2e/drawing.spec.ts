@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { mockFontNetwork } from './helpers';
 
 async function newEmptyDesign(page: Page) {
@@ -299,4 +300,23 @@ test('export can make one file per name (batch names)', async ({ page }) => {
   const dl = page.waitForEvent('download');
   await dialog.getByRole('button', { name: /^Download 3 \w+ files/ }).click();
   expect((await dl).suggestedFilename()).toMatch(/-3-names\.zip$/);
+});
+
+test('lettering can use a font file you add', async ({ page }) => {
+  await mockFontNetwork(page);
+  await newEmptyDesign(page);
+  await page.keyboard.press('t');
+  const c = await canvasCenter(page);
+  await page.mouse.click(c.x, c.y);
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: /^Font: Geist/ }).click();
+  const picker = page.getByRole('dialog', { name: 'Choose a font' });
+  const ttf = readFileSync(new URL('../../public/lettering/pacifico.ttf', import.meta.url));
+  const chooser = page.waitForEvent('filechooser');
+  await picker.getByRole('button', { name: 'Add font file…' }).click();
+  await (await chooser).setFiles({ name: 'MyScript.ttf', mimeType: 'font/ttf', buffer: ttf });
+  await expect(page.getByRole('button', { name: /^Font: Pacifico/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Font: Pacifico/ }).click();
+  await picker.getByRole('button', { name: 'Yours' }).click();
+  await expect(picker.getByRole('option', { name: /Pacifico/ })).toHaveCount(1);
 });
