@@ -15,6 +15,7 @@
 .menu-wrap { position: relative; }
 .menu { right: 0; top: 38px; min-width: 240px; padding: 6px; display: flex; flex-direction: column; }
 .menu button, .menu a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; background: none; color: var(--sb-text); text-decoration: none; text-align: left; border-radius: var(--sb-r-sm); cursor: pointer; font-size: var(--sb-fs-base); }
+.menu kbd { margin-left: auto; font-size: 11px; padding: 0 5px; color: var(--sb-text-muted); }
 .menu button:hover, .menu a:hover { background: var(--sb-bg-raised); color: var(--sb-text); }
 
 .editor-mid { flex: 1; min-height: 0; display: flex; }

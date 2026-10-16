@@ -30,10 +30,10 @@
 - **Bring your artwork.** Import an SVG and every shape becomes stitches: fills, run lines and satin borders, in the SVG's own colors. Or drop in a PNG or JPG and trace over it by hand, or use **Trace image**: it keeps only colors that really occur in the picture (or makes clean black-and-white line art in Threshold mode) and traces at high resolution with sub-pixel accuracy.
 - **Edit objects, not stitches.** Switch any shape between run, satin, tatami fill, contour fill and appliqué, then adjust the fill angle, density and stitch length. Stitches regenerate as you work.
 - **Draw and letter.** Use pen, satin column, fill and shape tools, with node editing. Type lettering directly on the canvas in any Google Font, picked from a searchable list that previews every family, and set it on an arc if you like.
-- **Start from good defaults.** Pick your machine, hoop and fabric, and the fabric preset sets density, underlay and pull compensation for you.
+- **Start from good defaults.** Pick your machine, hoop and fabric (remembered for next time), and the fabric preset sets density, underlay and pull compensation for you.
 - **See it before you sew it.** Preview a realistic thread render on your fabric, watch a stitch-out simulation, and get warnings for designs outside the hoop, density hotspots, short stitches and gaps between colors.
 - **Export for your machine.** Download PES, DST, JEF, EXP, VP3, XXX or HUS, with a printable color sheet. You can also open existing DST, PES, JEF and EXP files to recolor them.
-- **Keep your work private.** Designs autosave in your browser and are never uploaded. Download a `.tatami.json` file to back up or share a design.
+- **Keep your work private.** Designs autosave in your browser and are never uploaded. Save a design as a `.xtatami` file (⌘S) to back up, share, or keep working on it later with Open file (⌘O).
 
 <table>
   <tr>

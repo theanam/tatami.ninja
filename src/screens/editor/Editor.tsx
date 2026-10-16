@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from '../../components/ui';
-import { downloadProjectJson } from '../../export/export';
 import { artworkKind, pickFile, readAsDataUrl, readAsText, ARTWORK_ACCEPT } from '../../importers/files';
 import { importSvg } from '../../importers/svg';
 import { loadProject } from '../../storage/db';
+import { saveDesign } from '../../storage/projectFile';
 import { useEditor } from '../../store/editor';
 import { NotFound } from '../NotFound';
-import { persistNew, pickStitchFile, projectFromFile, setPendingTrace, takePendingTrace } from '../actions';
+import { openFromDisk, persistOpened, pickStitchFile, projectFromFile, takePendingTrace, type Opened } from '../actions';
 import { AutoDigitizeDialog } from './AutoDigitizeDialog';
 import { BackdropPanel } from './BackdropPanel';
 import { Canvas } from './Canvas';
@@ -62,7 +62,33 @@ function EditorShell() {
   const readOnly = project.source === 'stitch-file';
   useEngine();
   useAutosave();
-  useEditorKeyboard({ readOnly });
+  const save = useCallback(async (saveAs = false) => {
+    const p = useEditor.getState().project;
+    if (!p) return;
+    try {
+      const r = await saveDesign(p, { saveAs });
+      if (r) toast(r.via === 'file' ? `Saved to ${r.name}` : `Downloaded ${r.name}`);
+    } catch (e) {
+      toast(`Save failed: ${e instanceof Error ? e.message : String(e)}`, 'error');
+    }
+  }, []);
+  const openNew = useCallback(
+    async (res: Opened) => {
+      const newId = await persistOpened(res);
+      if (res.note) toast(res.note);
+      navigate(`/design/${newId}`);
+    },
+    [navigate],
+  );
+  const openFile = useCallback(async () => {
+    try {
+      const res = await openFromDisk();
+      if (res) await openNew(res);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    }
+  }, [openNew]);
+  useEditorKeyboard({ readOnly, onSave: save, onOpen: openFile });
   const { cmd, stitchPos } = useSimulation(plan);
   const s = useEditor.getState();
 
@@ -78,16 +104,7 @@ function EditorShell() {
     if (simActive && !plan?.stitchCount) s.setSim({ active: false, playing: false });
   }, [simActive, plan, s]);
 
-  const openAsNewProject = useCallback(
-    async (file: File) => {
-      const res = await projectFromFile(file);
-      const newId = await persistNew(res.project);
-      if (res.traceSource) setPendingTrace(newId, res.traceSource);
-      if (res.note) toast(res.note);
-      navigate(`/design/${newId}`);
-    },
-    [navigate],
-  );
+  const openAsNewProject = useCallback(async (file: File) => openNew(await projectFromFile(file)), [openNew]);
 
   const importFile = useCallback(
     async (file: File) => {
@@ -145,7 +162,9 @@ function EditorShell() {
         onExport={() => s.setDialog('export')}
         onImport={pickImport}
         onAddImage={pickImage}
-        onDownloadProject={() => downloadProjectJson(project)}
+        onSave={() => save()}
+        onSaveAs={() => save(true)}
+        onOpen={openFile}
       />
       <div className="editor-mid">
         <ToolRail readOnly={readOnly} onImportSvg={pickSvg} onAddImage={pickImage} />

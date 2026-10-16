@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { chooseFile, LOGO_SVG, makePng, openSample } from './helpers';
+import { chooseFile, LOGO_SVG, makePng, openSample, withoutFilePickers } from './helpers';
 
 const stitchTotal = async (page: Page) => Number((await page.locator('.statusbar .chip').first().innerText()).replace(/[^\d]/g, ''));
 
@@ -255,5 +255,53 @@ test.describe('editor', () => {
     const png = makePng(40, 40, (x) => (x < 20 ? [0, 0, 0] : [255, 255, 255]));
     await chooseFile(page, () => menu.getByRole('menuitem', { name: /Image/ }).click(), { name: 'a.png', mimeType: 'image/png', buffer: png });
     await expect(page.getByRole('dialog', { name: 'Trace image' })).toBeVisible();
+  });
+});
+
+test.describe('saving and opening .xtatami files', () => {
+  test('falls back to a download, and the file opens again with all its objects', async ({ page }) => {
+    await withoutFilePickers(page);
+    await openSample(page);
+    const dl = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Save' }).click();
+    const file = await dl;
+    expect(file.suggestedFilename()).toBe('harbor-club-badge.xtatami');
+    await expect(page.getByText('Downloaded harbor-club-badge.xtatami')).toBeVisible();
+    const buffer = readFileSync(await file.path());
+
+    await page.goto('/');
+    await chooseFile(page, () => page.getByRole('button', { name: 'Open file' }).click(), { name: 'harbor-club-badge.xtatami', mimeType: '', buffer });
+    await page.waitForURL(/#\/design\//);
+    await expect(page.locator('.seq-list .row')).toHaveCount(4);
+    await expect(page.locator('.name-btn')).toHaveText('Harbor Club Badge');
+    await expect(page.locator('.statusbar')).toContainText(/[1-9][\d,]* stitches/);
+  });
+
+  test('saves through the save picker and writes back without asking again', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__writes = [] as string[];
+      w.__picks = 0;
+      w.showSaveFilePicker = async () => {
+        w.__picks = (w.__picks as number) + 1;
+        return {
+          name: 'mine.xtatami',
+          getFile: async () => new File([], 'mine.xtatami'),
+          createWritable: async () => ({
+            write: async (b: Blob) => void (w.__writes as string[]).push(await b.text()),
+            close: async () => {},
+          }),
+        };
+      };
+    });
+    await openSample(page);
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect(page.getByText('Saved to mine.xtatami')).toBeVisible();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __writes: string[] }).__writes.length)).toBe(2);
+    expect(await page.evaluate(() => (window as unknown as { __picks: number }).__picks)).toBe(1);
+    const saved = JSON.parse(await page.evaluate(() => (window as unknown as { __writes: string[] }).__writes[1]));
+    expect(saved.format).toBe('tatami-project');
+    expect(saved.objects).toHaveLength(4);
   });
 });

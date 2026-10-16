@@ -24,6 +24,15 @@ export async function chooseFile(page: Page, trigger: () => Promise<void>, file:
   await (await chooser).setFiles(file);
 }
 
+/** Remove the File System Access pickers so the app uses its file-input / download fallbacks. */
+export async function withoutFilePickers(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    delete w.showOpenFilePicker;
+    delete w.showSaveFilePicker;
+  });
+}
+
 export function stitchFile(format: FileFormat): Buffer {
   return Buffer.from(encodeFormat(format, sampleProject, generatePlan(sampleProject)));
 }

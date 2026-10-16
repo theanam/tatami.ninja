@@ -93,14 +93,23 @@ export function isTypingTarget(t: EventTarget | null): boolean {
 }
 
 /** Global editor shortcuts. Drawing tools handle Enter/Escape/Backspace themselves first. */
-export function useEditorKeyboard(opts: { readOnly: boolean }) {
+export function useEditorKeyboard(opts: { readOnly: boolean; onSave?(saveAs: boolean): void; onOpen?(): void }) {
+  const files = useRef(opts);
+  files.current = opts;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      const k = e.key.toLowerCase();
+      // Save / open work everywhere (even while typing) and never trigger the browser's own dialogs.
+      if (mod && (k === 's' || k === 'o') && !e.altKey) {
+        e.preventDefault();
+        if (k === 's') files.current.onSave?.(e.shiftKey);
+        else files.current.onOpen?.();
+        return;
+      }
       if (isTypingTarget(e.target) || e.defaultPrevented) return;
       const s = useEditor.getState();
       if (s.dialog) return;
-      const mod = e.metaKey || e.ctrlKey;
-      const k = e.key.toLowerCase();
       if (mod && k === 'z') {
         e.preventDefault();
         if (e.shiftKey) s.redo();

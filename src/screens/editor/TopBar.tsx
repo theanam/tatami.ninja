@@ -8,12 +8,14 @@ import { useEditor, type ViewMode } from '../../store/editor';
 interface Props {
   onExport(): void;
   onImport(): void;
-  onDownloadProject(): void;
+  onSave(): void;
+  onSaveAs(): void;
+  onOpen(): void;
   onAddImage(): void;
   readOnly: boolean;
 }
 
-export function TopBar({ onExport, onImport, onDownloadProject, onAddImage, readOnly }: Props) {
+export function TopBar({ onExport, onImport, onSave, onSaveAs, onOpen, onAddImage, readOnly }: Props) {
   const project = useEditor((s) => s.project)!;
   const saveState = useEditor((s) => s.saveState);
   const view = useEditor((s) => s.view);
@@ -97,6 +99,7 @@ export function TopBar({ onExport, onImport, onDownloadProject, onAddImage, read
       <a href={REPO_URL} target="_blank" rel="noreferrer" className="tb xs gh-link" aria-label="tatami.ninja on GitHub" {...ghTip}>
         <GithubMark size={15} />
       </a>
+      <IconButton icon="save" label="Save" shortcut="⌘S" size="sm" onClick={onSave} />
       <div className="menu-wrap" ref={menuRef}>
         <IconButton icon="more" label="Design menu" size="sm" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)} />
         {menu && (
@@ -111,8 +114,14 @@ export function TopBar({ onExport, onImport, onDownloadProject, onAddImage, read
                 <Icon name="image" small /> Add image (trace or backdrop)…
               </button>
             )}
-            <button role="menuitem" onClick={() => (setMenu(false), onDownloadProject())}>
-              <Icon name="download" small /> Download project (.json)
+            <button role="menuitem" onClick={() => (setMenu(false), onSave())}>
+              <Icon name="save" small /> Save <kbd>⌘S</kbd>
+            </button>
+            <button role="menuitem" onClick={() => (setMenu(false), onSaveAs())}>
+              <Icon name="download" small /> Save as… <kbd>⇧⌘S</kbd>
+            </button>
+            <button role="menuitem" onClick={() => (setMenu(false), onOpen())}>
+              <Icon name="folder" small /> Open… <kbd>⌘O</kbd>
             </button>
             <Link role="menuitem" to="/help" target="_blank">
               <Icon name="help" small /> Help & shortcuts

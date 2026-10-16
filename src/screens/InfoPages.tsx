@@ -207,8 +207,8 @@ export function HelpPage() {
         <h2>Where are my designs?</h2>
         <p>
           Designs are saved automatically in this browser (IndexedDB) — nothing is uploaded. Clearing site data or using a private window removes them. To back
-          up or move a design, use <b>Export → Include the editable project file (.json)</b>, or the project menu's <b>Download project</b>. Open it again with{' '}
-          <b>Import artwork</b>.
+          up or move a design, <b>Save</b> it (<kbd>⌘S</kbd>) as a <b>.xtatami</b> file. Open it again with <b>Open file</b> (<kbd>⌘O</kbd>) and carry on where you
+          left off; in Chrome and Edge, later saves go straight back to the same file.
         </p>
       </section>
 

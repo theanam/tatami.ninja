@@ -10,7 +10,7 @@ import type { Project } from '../model/types';
 import { fmtInt, fmtRelative } from '../model/units';
 import { hoopLabel } from '../presets';
 import { deleteProject, listProjects, loadProject, type ProjectSummary } from '../storage/db';
-import { persistNew, pickArtwork, pickStitchFile, projectFromFile, setPendingTrace } from './actions';
+import { openFromDisk, persistNew, persistOpened, pickArtwork, projectFromFile, type Opened } from './actions';
 
 const TEMPLATE_ICONS: Record<TemplateInfo['id'], JSX.Element> = {
   'round-patch': (
@@ -135,14 +135,13 @@ export function Home() {
     refresh();
   }, [refresh]);
 
-  const open = async (make: () => Promise<{ project: Project; note?: string; traceSource?: string } | null>) => {
+  const open = async (make: () => Promise<Opened | null>) => {
     if (busy) return;
     setBusy(true);
     try {
       const res = await make();
       if (!res) return;
-      const id = await persistNew(res.project);
-      if (res.traceSource) setPendingTrace(id, res.traceSource);
+      const id = await persistOpened(res);
       if (res.note) toast(res.note);
       navigate(`/design/${id}`);
     } catch (e) {
@@ -186,9 +185,9 @@ export function Home() {
             <p>Saved in this browser. No account, nothing uploaded.</p>
           </div>
           <div className="hero-actions">
-            <button className="btn page cta" onClick={fromPicked(pickStitchFile)} disabled={busy}>
+            <button className="btn page cta" onClick={() => open(openFromDisk)} disabled={busy}>
               <Icon name="folder" small />
-              Open stitch file
+              Open file
             </button>
             <button className="btn page cta" onClick={fromPicked(pickArtwork)} disabled={busy}>
               <Icon name="upload" small />

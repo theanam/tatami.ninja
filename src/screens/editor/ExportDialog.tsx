@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { Dialog, toast } from '../../components/ui';
-import { colorBlockStats, colorSheetPdf, downloadBytes, downloadProjectJson, encodeFormat, fileBaseName } from '../../export/export';
+import { saveDesign } from '../../storage/projectFile';
+import { colorBlockStats, colorSheetPdf, downloadBytes, encodeFormat, fileBaseName } from '../../export/export';
 import { FORMATS } from '../../formats';
 import type { FileFormat } from '../../model/types';
 import { fmtInt, fmtLen, sewMinutes } from '../../model/units';
@@ -46,7 +47,7 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
       const base = name.trim() || 'design';
       downloadBytes(encodeFormat(format, project, plan), `${base}.${info.ext}`);
       if (sheet) downloadBytes(await colorSheetPdf(project, plan, thumb), `${base}-color-sheet.pdf`, 'application/pdf');
-      if (json) downloadProjectJson({ ...project, name: project.name });
+      if (json) await saveDesign(project);
       toast(`Downloaded ${base}.${info.ext}`);
       onClose();
     } catch (e) {
@@ -130,7 +131,7 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
           </label>
           <label className="check">
             <input type="checkbox" checked={json} onChange={(e) => setJson(e.target.checked)} />
-            Include the editable project file (.json)
+            Also save the editable design (.xtatami)
           </label>
         </div>
         <div className="export-right">

@@ -19,16 +19,21 @@ export type ProjectSummary = Omit<ProjectRecord, 'project'> & {
 
 interface Schema extends DBSchema {
   projects: { key: string; value: ProjectRecord; indexes: { updatedAt: number } };
+  /** File System Access handles of saved/opened .xtatami files, by project id. */
+  handles: { key: string; value: unknown };
 }
 
 let dbPromise: Promise<IDBPDatabase<Schema>> | null = null;
 
 function db() {
   if (!dbPromise) {
-    dbPromise = openDB<Schema>('tatami-ninja', 1, {
-      upgrade(d) {
-        const store = d.createObjectStore('projects', { keyPath: 'id' });
-        store.createIndex('updatedAt', 'updatedAt');
+    dbPromise = openDB<Schema>('tatami-ninja', 2, {
+      upgrade(d, oldVersion) {
+        if (oldVersion < 1) {
+          const store = d.createObjectStore('projects', { keyPath: 'id' });
+          store.createIndex('updatedAt', 'updatedAt');
+        }
+        if (oldVersion < 2) d.createObjectStore('handles');
       },
     });
   }
@@ -81,4 +86,14 @@ export async function listProjects(): Promise<ProjectSummary[]> {
 export async function deleteProject(id: string) {
   const d = await db();
   await d.delete('projects', id);
+}
+
+export async function putFileHandle(projectId: string, handle: unknown) {
+  const d = await db();
+  await d.put('handles', handle, projectId);
+}
+
+export async function getFileHandle(projectId: string): Promise<unknown> {
+  const d = await db();
+  return d.get('handles', projectId);
 }

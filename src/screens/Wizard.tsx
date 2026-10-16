@@ -7,6 +7,7 @@ import { createProject } from '../model/project';
 import type { MachineBrand } from '../model/types';
 import { FABRICS, getFabric, getMachine, HOOPS, MACHINES } from '../presets';
 import { persistNew } from './actions';
+import { loadWizardPrefs, saveWizardPrefs } from './wizardPrefs';
 
 const FABRIC_SWATCH: Record<string, string> = {
   cotton: 'repeating-linear-gradient(0deg,rgba(0,0,0,.06) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.06) 0 1px,transparent 1px 3px),#E8E4DC',
@@ -24,11 +25,13 @@ const FABRIC_SWATCH: Record<string, string> = {
 export function Wizard() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
-  const [machine, setMachine] = useState<MachineBrand>('brother');
-  const [hoopId, setHoopId] = useState('130x180');
-  const [custom, setCustom] = useState({ w: 150, h: 150 });
-  const [fabric, setFabric] = useState('cotton-twill');
-  const [units, setUnits] = useState<'mm' | 'in'>('mm');
+  // Start from the last design's choices.
+  const [initial] = useState(loadWizardPrefs);
+  const [machine, setMachine] = useState<MachineBrand>(initial.machine);
+  const [hoopId, setHoopId] = useState(initial.hoopId);
+  const [custom, setCustom] = useState(initial.custom);
+  const [fabric, setFabric] = useState(initial.fabric);
+  const [units, setUnits] = useState<'mm' | 'in'>(initial.units);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     document.title = 'New design — tatami.ninja';
@@ -45,6 +48,7 @@ export function Wizard() {
     setBusy(true);
     try {
       const id = await persistNew(createProject({ name, machine, hoop, fabric, units }));
+      saveWizardPrefs({ machine, hoopId, custom, fabric, units });
       navigate(`/design/${id}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');

@@ -5,6 +5,7 @@ import { createProject, newId, parseProjectJson } from '../model/project';
 import type { Backdrop, Project } from '../model/types';
 import { HOOPS } from '../presets';
 import { saveProject } from '../storage/db';
+import { isDesignFile, openDesignFile, rememberHandle, type FileHandleLike } from '../storage/projectFile';
 
 const pendingTrace = new Map<string, string>();
 
@@ -75,8 +76,26 @@ export async function projectFromFile(file: File): Promise<{ project: Project; n
       return { project: base(), traceSource: await readAsDataUrl(file) };
     }
     default:
-      throw new Error('Unsupported file. Use an SVG, PNG, JPG, a stitch file (DST, PES, JEF, EXP) or a .tatami.json project.');
+      throw new Error('Unsupported file. Use an SVG, PNG, JPG, a stitch file (DST, PES, JEF, EXP) or a .xtatami design.');
   }
+}
+
+export type Opened = { project: Project; note?: string; traceSource?: string; handle?: FileHandleLike };
+
+/** Open a design (.xtatami) or stitch file from disk. Design files keep their handle so Save writes back. */
+export async function openFromDisk(): Promise<Opened | null> {
+  const picked = await openDesignFile();
+  if (!picked) return null;
+  const res = await projectFromFile(picked.file);
+  return picked.handle && isDesignFile(picked.file.name) ? { ...res, handle: picked.handle } : res;
+}
+
+/** Persist an opened/imported project and queue whatever the editor should do on load. */
+export async function persistOpened(res: Opened): Promise<string> {
+  const id = await persistNew(res.project);
+  if (res.traceSource) setPendingTrace(id, res.traceSource);
+  if (res.handle) await rememberHandle(id, res.handle);
+  return id;
 }
 
 export async function pickArtwork(): Promise<File | null> {

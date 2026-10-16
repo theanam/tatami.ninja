@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { chooseFile, LOGO_SVG, makePng, stitchFile } from './helpers';
+import { chooseFile, LOGO_SVG, makePng, stitchFile, withoutFilePickers } from './helpers';
 
 test.describe('home and pages', () => {
   test('shows the home page with links to GitHub, help and about', async ({ page }) => {
@@ -33,6 +33,19 @@ test.describe('home and pages', () => {
     await expect(page.getByText('Denim patch')).toBeVisible();
     await page.getByPlaceholder('Search designs').fill('nothing');
     await expect(page.getByText('No designs match')).toBeVisible();
+  });
+
+  test('the wizard remembers the last machine, hoop and fabric', async ({ page }) => {
+    await page.goto('/#/new');
+    await page.getByRole('button', { name: /Something else/ }).click();
+    await page.getByRole('button', { name: /100 × 100/ }).click();
+    await page.getByRole('button', { name: /Denim/ }).click();
+    await page.getByRole('button', { name: 'Create design' }).click();
+    await page.waitForURL(/#\/design\//);
+    await page.goto('/#/new');
+    await expect(page.getByRole('button', { name: /Something else/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /100 × 100/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /Denim/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('the empty canvas can be dismissed to start blank, and stays dismissed', async ({ page }) => {
@@ -105,8 +118,9 @@ test.describe('home and pages', () => {
   });
 
   test('opens a PES stitch file as recolor-only', async ({ page }) => {
+    await withoutFilePickers(page);
     await page.goto('/');
-    await chooseFile(page, () => page.getByRole('button', { name: 'Open stitch file' }).click(), {
+    await chooseFile(page, () => page.getByRole('button', { name: 'Open file' }).click(), {
       name: 'badge.pes',
       mimeType: 'application/octet-stream',
       buffer: stitchFile('PES'),

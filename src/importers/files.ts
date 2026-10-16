@@ -5,7 +5,9 @@ import { FLAT_HOOPS } from '../presets';
 import type { RasterImage } from './autoDigitize';
 
 export const STITCH_FILE_ACCEPT = '.dst,.pes,.pec,.jef,.exp';
-export const ARTWORK_ACCEPT = '.svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,.json';
+export const ARTWORK_ACCEPT = '.svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,.json,.xtatami';
+/** Everything "Open file" accepts: designs and stitch files. */
+export const OPEN_ACCEPT = '.xtatami,.json,.dst,.pes,.pec,.jef,.exp';
 
 export function readAsText(f: Blob): Promise<string> {
   return f.text();
@@ -29,7 +31,7 @@ export type ArtworkKind = 'svg' | 'raster' | 'project' | 'stitch' | 'unknown';
 export function artworkKind(name: string, type = ''): ArtworkKind {
   const n = name.toLowerCase();
   if (n.endsWith('.svg') || type === 'image/svg+xml') return 'svg';
-  if (n.endsWith('.json')) return 'project';
+  if (n.endsWith('.xtatami') || n.endsWith('.json')) return 'project';
   if (/\.(png|jpe?g|webp)$/.test(n) || /^image\/(png|jpeg|webp)$/.test(type)) return 'raster';
   if (/\.(dst|pes|pec|jef|exp)$/.test(n)) return 'stitch';
   return 'unknown';
