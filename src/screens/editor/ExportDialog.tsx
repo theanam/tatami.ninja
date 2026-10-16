@@ -3,6 +3,7 @@ import { Icon } from '../../components/Icon';
 import { Dialog, Select, toast } from '../../components/ui';
 import { generatePlan } from '../../engine/plan';
 import { zip } from '../../export/zip';
+import { batchFiles, parseNames } from '../../export/batch';
 import { sectionProject, splitDesign } from '../../model/split';
 import { saveDesign } from '../../storage/projectFile';
 import { appliqueCutSvg } from '../../export/cutFile';
@@ -35,6 +36,11 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const [thumb, setThumb] = useState<string | undefined>();
   const [splitHoop, setSplitHoop] = useState<string>(outOfHoopInit(project) ? FLAT_HOOPS[FLAT_HOOPS.length - 1].id : 'none');
   const hoopFor = FLAT_HOOPS.find((x) => x.id === splitHoop);
+  const textObjs = project.objects.filter((o) => o.visible && o.text);
+  const [batch, setBatch] = useState(false);
+  const [batchId, setBatchId] = useState(textObjs[0]?.id ?? '');
+  const [namesText, setNamesText] = useState('');
+  const names = parseNames(namesText);
   const split = useMemo(() => (hoopFor ? splitDesign(project, hoopFor) : null), [project, hoopFor]);
   useEffect(() => {
     let alive = true;
@@ -59,7 +65,10 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const download = async () => {
     try {
       const base = name.trim() || 'design';
-      if (split && hoopFor && split.sections.length > 1) {
+      if (batch && names.length) {
+        const files = await batchFiles(project, batchId, names, format, base);
+        downloadBytes(zip(files), `${base}-${files.length}-names.zip`, 'application/zip');
+      } else if (split && hoopFor && split.sections.length > 1) {
         const n = split.sections.length;
         const files = split.sections.map((sec) => {
           const sp = sectionProject(project, split, sec, hoopFor);
@@ -95,9 +104,9 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
           <button className="btn page" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn page pri" onClick={download} disabled={!plan.stitchCount}>
+          <button className="btn page pri" onClick={download} disabled={!plan.stitchCount || (batch && !names.length)}>
             <Icon name="export" small />
-            Download {format}
+            {batch && names.length ? `Download ${names.length} ${format} files` : `Download ${format}`}
           </button>
         </>
       }
@@ -173,6 +182,29 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
             <input id="fname" value={name} onChange={(e) => setName(e.target.value.replace(/[\\/:*?"<>|]/g, ''))} onKeyDown={(e) => e.stopPropagation()} />
             <span className="mono ext">.{info.ext}</span>
           </div>
+          {textObjs.length > 0 && (
+            <label className="check">
+              <input type="checkbox" checked={batch} onChange={(e) => setBatch(e.target.checked)} />
+              Batch names (one file per name)
+            </label>
+          )}
+          {batch && textObjs.length > 0 && (
+            <div className="batch">
+              {textObjs.length > 1 && (
+                <Select id="batchobj" label="Lettering to replace" value={batchId} onChange={setBatchId} options={textObjs.map((o) => ({ value: o.id, label: o.name }))} />
+              )}
+              <textarea
+                className="input batch-names"
+                aria-label="Names, one per line"
+                placeholder={'Ava\nNoah\nMia'}
+                rows={5}
+                value={namesText}
+                onChange={(e) => setNamesText(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+              <span className="meta">{names.length} names</span>
+            </div>
+          )}
           <label className="check">
             <input type="checkbox" checked={sheet} onChange={(e) => setSheet(e.target.checked)} />
             Also download a printable color sheet (PDF)

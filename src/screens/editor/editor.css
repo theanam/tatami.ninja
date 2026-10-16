@@ -339,3 +339,5 @@
 .select-with-btn > :first-child { flex: 1; min-width: 0; }
 .ex-split { margin: 10px 0 4px; }
 .split-note { margin: 0 0 8px; }
+.batch { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px 26px; }
+.batch-names { width: 100%; resize: vertical; font: inherit; padding: 8px; min-height: 90px; }

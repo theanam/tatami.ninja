@@ -283,3 +283,20 @@ test.describe('lettering shapes and monograms', () => {
     await expect(page.getByRole('button', { name: 'Ungroup (⇧⌘G)' })).toBeVisible();
   });
 });
+
+test('export can make one file per name (batch names)', async ({ page }) => {
+  await newEmptyDesign(page);
+  await page.keyboard.press('t');
+  const c = await canvasCenter(page);
+  await page.mouse.click(c.x, c.y);
+  await page.keyboard.type('NAME');
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Export' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export design' });
+  await dialog.getByLabel('Batch names (one file per name)').check();
+  await dialog.getByLabel('Names, one per line').fill('Ava\nNoah\nMia\nAva');
+  await expect(dialog.getByText('3 names')).toBeVisible();
+  const dl = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: /^Download 3 \w+ files/ }).click();
+  expect((await dl).suggestedFilename()).toMatch(/-3-names\.zip$/);
+});
