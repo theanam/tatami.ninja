@@ -38,6 +38,68 @@ const TEMPLATE_ICONS: Record<TemplateInfo['id'], JSX.Element> = {
       <path d="M17 5l11 4v9c0 6-5 10-11 12-6-2-11-6-11-12V9z" fill="none" stroke="#F2EFE6" strokeWidth="1.6" strokeDasharray=".5 .3" />
     </svg>
   ),
+  'club-badge': (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <circle cx="17" cy="17" r="14" fill="#24357A" />
+      <circle cx="17" cy="17" r="14" fill="none" stroke="#D4A43A" strokeWidth="2.4" strokeDasharray=".5 .3" />
+      <path d="M17 11l1.8 3.8 4.1.4-3.1 2.7.9 4-3.7-2.1-3.7 2.1.9-4-3.1-2.7 4.1-.4z" fill="#D4A43A" />
+      <path d="M8.5 13.5a9.5 9.5 0 0117 0" fill="none" stroke="#D4A43A" strokeWidth="1.2" strokeDasharray="1.4 .9" />
+    </svg>
+  ),
+  monogram: (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <circle cx="17" cy="17" r="13" fill="none" stroke="#5B7FB8" strokeWidth="2.2" strokeDasharray=".5 .3" />
+      <text x="17" y="22.5" textAnchor="middle" fontSize="15" fontWeight="700" fontFamily="Georgia, serif" fill="#C9D6EE">
+        A
+      </text>
+    </svg>
+  ),
+  heart: (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <path d="M17 29C9 23 4 18 4 12c0-4 3-7 7-7 3 0 5 2 6 4 1-2 3-4 6-4 4 0 7 3 7 7 0 6-5 11-13 17z" fill="#C8282E" stroke="#7A1420" strokeWidth="1.4" />
+    </svg>
+  ),
+  'mountain-patch': (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <circle cx="17" cy="17" r="13" fill="#8EC5E8" />
+      <path d="M6 23l8-11 4 5 3-4 8 10c-3 4-7 6-12 6s-9-2-11-6z" fill="#6B7280" />
+      <path d="M14 12l-2 3 2-.5 2 .8z" fill="#F7F7F5" />
+      <circle cx="17" cy="17" r="13.5" fill="none" stroke="#F2EFE6" strokeWidth="1.8" strokeDasharray=".5 .3" />
+    </svg>
+  ),
+  leaf: (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <path d="M5 29C7 14 19 6 30 5c-1 12-9 23-25 24z" fill="#3E8E4F" />
+      <path d="M7 27C14 21 21 14 28 7" fill="none" stroke="#CFE8C8" strokeWidth="1" strokeDasharray="1.6 .8" />
+    </svg>
+  ),
+  'rose-line': (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <g fill="none" stroke="#E0457E" strokeWidth="1">
+        <circle cx="17" cy="11" r="2" />
+        <circle cx="17" cy="11" r="4.5" />
+        <circle cx="17" cy="11" r="7" />
+      </g>
+      <path d="M17 18v13M17 25c-3-2.5-6-2-8 0 2 1.6 5 1.6 8 0M17 28c3-2.5 6-2 8 0-2 1.6-5 1.6-8 0" fill="none" stroke="#4CAF50" strokeWidth="1" />
+    </svg>
+  ),
+  'paw-print': (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <g fill="#A06A4A">
+        <ellipse cx="8" cy="14" rx="3.2" ry="4" />
+        <ellipse cx="14" cy="8" rx="3.2" ry="4" />
+        <ellipse cx="21" cy="8" rx="3.2" ry="4" />
+        <ellipse cx="27" cy="14" rx="3.2" ry="4" />
+        <path d="M17.5 16c4.5 0 9 5 9 9.5 0 3.5-3 5-6 4-1.3-.4-2-1.2-3-1.2s-1.7.8-3 1.2c-3 1-6-.5-6-4 0-4.5 4.5-9.5 9-9.5z" />
+      </g>
+    </svg>
+  ),
+  'hex-patch': (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <path d="M10 5h14l8 12-8 12H10L2 17z" fill="#1F6F6B" stroke="#F2D23C" strokeWidth="1.8" strokeDasharray=".5 .3" />
+      <path d="M10 17h14" stroke="#F2D23C" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 export function Home() {
@@ -109,11 +171,11 @@ export function Home() {
             <p>Saved in this browser. No account, nothing uploaded.</p>
           </div>
           <div className="hero-actions">
-            <button className="btn page" onClick={fromPicked(pickStitchFile)} disabled={busy}>
+            <button className="btn page cta" onClick={fromPicked(pickStitchFile)} disabled={busy}>
               <Icon name="folder" small />
               Open stitch file
             </button>
-            <button className="btn page" onClick={fromPicked(pickArtwork)} disabled={busy}>
+            <button className="btn page cta" onClick={fromPicked(pickArtwork)} disabled={busy}>
               <Icon name="upload" small />
               Import artwork
             </button>
