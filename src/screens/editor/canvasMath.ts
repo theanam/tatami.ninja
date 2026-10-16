@@ -94,6 +94,8 @@ export function hitsObject(o: StitchObject, p: P, tol: number): boolean {
   const g = o.geometry;
   const b = geometryBounds(g);
   if (!b || p[0] < b.minX - tol || p[0] > b.maxX + tol || p[1] < b.minY - tol || p[1] > b.maxY + tol) return false;
+  // Lettering: the whole text box is grabbable, not just the glyph outlines.
+  if (o.text) return true;
   if (g.kind === 'stitches') {
     for (let i = 3; i + 2 < g.data.length; i += 3) {
       if (distToSegment(p, [g.data[i - 3], g.data[i - 2]], [g.data[i], g.data[i + 1]]) <= tol) return true;

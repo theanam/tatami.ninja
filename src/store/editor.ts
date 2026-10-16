@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { booleanAreas, offsetAreas, type BoolOp } from '../engine/clip';
-import { areasOf, type Area } from '../engine/geom';
+import { areasOf, unionBounds, type Area } from '../engine/geom';
 import type { Warning } from '../engine/warnings';
 import { ensureThread, newId } from '../model/project';
 import { objectsBounds, rotateObject, runToSatin, scaleObject, setSatinWidth, translateObject } from '../model/transform';
@@ -111,6 +111,8 @@ export interface EditorState {
   booleanSelected(op: BoolOp): void;
   offsetOutline(id: string, distance: number): void;
   replaceObject(obj: StitchObject, key?: string): void;
+  /** Replace several objects at once (by id), e.g. the result of a drag. */
+  replaceObjects(objs: StitchObject[], key?: string): void;
   addThread(hex: string, name?: string): string;
   updateThread(id: string, patch: Partial<Thread>): void;
   removeThread(id: string): void;
@@ -355,7 +357,8 @@ export const useEditor = create<EditorState>((set, get) => {
       const { project, plan } = get();
       if (!project) return;
       const visible = project.objects.filter((o) => o.visible);
-      const b = plan?.bounds ?? objectsBounds(visible);
+      // Stitched extents include pull compensation; geometry covers objects the engine skipped.
+      const b = unionBounds(plan?.bounds ?? null, objectsBounds(visible));
       if (!b) return;
       const w = b.maxX - b.minX;
       const h = b.maxY - b.minY;
@@ -443,6 +446,11 @@ export const useEditor = create<EditorState>((set, get) => {
 
     replaceObject(obj, key) {
       get().update((p) => ({ ...p, objects: p.objects.map((o) => (o.id === obj.id ? obj : o)) }), { key, dirty: [obj.id] });
+    },
+
+    replaceObjects(objs, key) {
+      const byId = new Map(objs.map((o) => [o.id, o]));
+      get().update((p) => ({ ...p, objects: p.objects.map((o) => byId.get(o.id) ?? o) }), { key, dirty: objs.map((o) => o.id) });
     },
 
     addThread(hex, name) {

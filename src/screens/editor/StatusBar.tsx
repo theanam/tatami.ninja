@@ -91,7 +91,7 @@ function WarningsPopover({ warnings }: { warnings: Warning[] }) {
               <div className="warn-body">
                 <div className="warn-title">{w.title}</div>
                 <div className="warn-msg">{w.message}</div>
-                {w.kind === 'out-of-hoop' && (
+                {(w.kind === 'out-of-hoop' || w.kind === 'too-large') && (
                   <div className="warn-actions">
                     <button className="btn pri small" onClick={() => s.scaleToFitHoop()}>
                       Scale to fit
@@ -109,7 +109,7 @@ function WarningsPopover({ warnings }: { warnings: Warning[] }) {
                   </div>
                 )}
               </div>
-              {w.kind !== 'out-of-hoop' && (
+              {w.kind !== 'out-of-hoop' && w.kind !== 'too-large' && (
                 <button className="btn small" onClick={() => show(w)}>
                   Show
                 </button>

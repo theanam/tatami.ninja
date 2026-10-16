@@ -102,6 +102,15 @@ describe('editor store', () => {
     expect(plan.bounds!.minX).toBeGreaterThanOrEqual(-350);
   });
 
+  it('scales objects the engine skipped (too large) back into the hoop', () => {
+    s().addObjects([{ ...square('giant', 0), geometry: { kind: 'circle', cx: 0, cy: 0, r: 20000 } }]);
+    s().setEngineResult(generatePlan(s().project!), []);
+    s().scaleToFitHoop();
+    const plan = generatePlan(s().project!);
+    expect(plan.skipped).toEqual([]);
+    expect(plan.bounds!.maxX - plan.bounds!.minX).toBeLessThanOrEqual(1300);
+  });
+
   it('merges shapes with a boolean union', () => {
     s().addObjects([square('a', 0), square('b', 50)]);
     s().select(['a', 'b']);

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { geometryBounds, type P } from '../../engine/geom';
+import { MAX_OBJECT_SIZE } from '../../engine/plan';
 import { columnFromRails } from '../../engine/satin';
 import { defaultTextSpec, layoutText, loadFont, makeTextObject } from '../../importers/lettering';
 import { ensureThread } from '../../model/project';
 import { deleteVertex, insertVertexAfter, listVertices, moveVertex, nearestSegment } from '../../model/nodes';
-import { objectsBounds, satinWidth } from '../../model/transform';
+import { objectsBounds, satinWidth, scaleObject, translateObject } from '../../model/transform';
 import type { Pt, StitchObject } from '../../model/types';
 import { fmtLen, fmtLenCompact } from '../../model/units';
 import { getFabric, hoopLabel } from '../../presets';
@@ -32,14 +33,14 @@ import { isTypingTarget } from './hooks';
 
 type Drag =
   | { kind: 'pan'; start: P; pan: { x: number; y: number } }
-  | { kind: 'move'; last: P; moved: boolean }
+  | { kind: 'move'; start: P; orig: StitchObject[] }
   | { kind: 'marquee'; start: P; end: P; additive: boolean }
   | { kind: 'angle'; id: string; center: P }
-  | { kind: 'scale'; anchor: P; startDist: number; startScale: number; applied: number }
+  | { kind: 'scale'; anchor: P; startDist: number; orig: StitchObject[] }
   | { kind: 'node'; id: string; key: string }
   | { kind: 'shape'; start: P; end: P }
   | { kind: 'measure'; start: P; end: P }
-  | { kind: 'backdrop'; last: P };
+  | { kind: 'backdrop'; start: P; origX: number; origY: number };
 
 interface Props {
   readOnly: boolean;
@@ -322,9 +323,10 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       }
       if (h.startsWith('corner:')) {
         const b = objectsBounds(sel)!;
+        // The handle's own corner; scaling pivots on the opposite one.
         const [cx, cy] = h.slice(7).split(',').map(Number);
         const anchor: P = [cx ? b.minX : b.maxX, cy ? b.minY : b.maxY];
-        setDrag({ kind: 'scale', anchor, startDist: Math.hypot(wp[0] - anchor[0], wp[1] - anchor[1]) || 1, startScale: 1, applied: 1 });
+        setDrag({ kind: 'scale', anchor, startDist: Math.hypot(wp[0] - anchor[0], wp[1] - anchor[1]) || 1, orig: sel });
         return;
       }
       if (h.startsWith('node:') && single) {
@@ -342,11 +344,20 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       case 'node': {
         const hit = hitTest(project, wp, tol);
         if (hit) {
-          if (e.shiftKey || e.metaKey || e.ctrlKey) s.select([hit.id], true);
-          else if (!selection.includes(hit.id)) s.select([hit.id]);
-          if (editable && !hit.locked) setDrag({ kind: 'move', last: wp, moved: false });
+          let ids = selection;
+          if (e.shiftKey || e.metaKey || e.ctrlKey) {
+            s.select([hit.id], true);
+            ids = useEditor.getState().selection;
+          } else if (!selection.includes(hit.id)) {
+            s.select([hit.id]);
+            ids = [hit.id];
+          }
+          // Snapshot the objects being dragged; every move is computed from this, so fast
+          // pointer events can never apply the same offset twice.
+          const orig = project.objects.filter((o) => ids.includes(o.id) && !o.locked);
+          if (editable && !hit.locked && orig.length) setDrag({ kind: 'move', start: wp, orig });
         } else if (editable && project.backdrop && project.backdrop.visible && !project.backdrop.locked && inBackdrop(wp)) {
-          setDrag({ kind: 'backdrop', last: wp });
+          setDrag({ kind: 'backdrop', start: wp, origX: project.backdrop.x, origY: project.backdrop.y });
         } else {
           setDrag({ kind: 'marquee', start: wp, end: wp, additive: e.shiftKey || e.metaKey || e.ctrlKey });
         }
@@ -410,20 +421,13 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         s.setPan({ x: drag.pan.x + sp[0] - drag.start[0], y: drag.pan.y + sp[1] - drag.start[1] });
         return;
       case 'move': {
-        const dx = Math.round(wp[0] - drag.last[0]);
-        const dy = Math.round(wp[1] - drag.last[1]);
-        if (!dx && !dy) return;
-        s.translateSelected(dx, dy, 'drag-move');
-        setDrag({ ...drag, last: [drag.last[0] + dx, drag.last[1] + dy], moved: true });
+        const dx = Math.round(wp[0] - drag.start[0]);
+        const dy = Math.round(wp[1] - drag.start[1]);
+        s.replaceObjects(drag.orig.map((o) => translateObject(o, dx, dy)), 'drag-move');
         return;
       }
       case 'backdrop': {
-        const dx = Math.round(wp[0] - drag.last[0]);
-        const dy = Math.round(wp[1] - drag.last[1]);
-        const b = project.backdrop;
-        if (!b || (!dx && !dy)) return;
-        s.updateBackdrop({ x: b.x + dx, y: b.y + dy }, 'backdrop-move');
-        setDrag({ ...drag, last: [drag.last[0] + dx, drag.last[1] + dy] });
+        s.updateBackdrop({ x: Math.round(drag.origX + wp[0] - drag.start[0]), y: Math.round(drag.origY + wp[1] - drag.start[1]) }, 'backdrop-move');
         return;
       }
       case 'marquee':
@@ -433,17 +437,13 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         s.setParams([drag.id], { angleDeg: angleFromDrag(drag.center, wp) }, 'angle-drag');
         return;
       case 'scale': {
+        // Uniform scale about the opposite corner, always from the original objects.
         const d = Math.hypot(wp[0] - drag.anchor[0], wp[1] - drag.anchor[1]);
-        const target = Math.max(0.05, d / drag.startDist);
-        const step = target / drag.applied;
-        if (Math.abs(step - 1) < 0.005) return;
-        // Scale about the anchor corner: scale about center then shift.
-        const b = objectsBounds(sel)!;
-        const cx = (b.minX + b.maxX) / 2;
-        const cy = (b.minY + b.maxY) / 2;
-        s.scaleSelected(step, step, 'drag-scale');
-        s.translateSelected((cx - drag.anchor[0]) * (step - 1), (cy - drag.anchor[1]) * (step - 1), 'drag-scale');
-        setDrag({ ...drag, applied: target });
+        const ob = objectsBounds(drag.orig);
+        const maxF = ob ? MAX_OBJECT_SIZE / Math.max(1, ob.maxX - ob.minX, ob.maxY - ob.minY) : 10;
+        const f = Math.min(maxF, Math.max(0.05, d / drag.startDist));
+        const [ax, ay] = drag.anchor;
+        s.replaceObjects(drag.orig.map((o) => scaleObject(o, f, f, ax, ay)), 'drag-scale');
         return;
       }
       case 'node': {
@@ -600,7 +600,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       const [x0, y0] = toScreen(v, [b.minX, b.minY]);
       const [x1, y1] = toScreen(v, [b.maxX, b.maxY]);
       overlays.push(
-        <rect key="selbox" x={x0 - 4} y={y0 - 4} width={x1 - x0 + 8} height={y1 - y0 + 8} fill="none" stroke="var(--sb-handle)" strokeWidth={1} strokeDasharray="4 3" />,
+        <rect key="selbox" className="selbox" x={x0 - 4} y={y0 - 4} width={x1 - x0 + 8} height={y1 - y0 + 8} fill="none" stroke="var(--sb-handle)" strokeWidth={1} strokeDasharray="4 3" />,
       );
       if (editable && tool === 'select' && sel.every((o) => !o.locked)) {
         for (const [cx, cy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
@@ -609,7 +609,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
           overlays.push(
             <rect
               key={`c${cx}${cy}`}
-              data-handle={`corner:${cx ? 0 : 1},${cy ? 0 : 1}`}
+              data-handle={`corner:${cx},${cy}`}
               className={cx === cy ? 'h-nwse' : 'h-nesw'}
               x={hx - 4}
               y={hy - 4}

@@ -464,6 +464,7 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
               decimals={units === 'mm' ? 1 : 2}
               error={tooWide}
               min={toDisplay(10, units)}
+              max={toDisplay(6000, units)}
               onChange={(v) => w > 0 && s.scaleSelected(fromDisplay(v, units) / w, fromDisplay(v, units) / w)}
             />
           </label>
@@ -476,6 +477,7 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
               decimals={units === 'mm' ? 1 : 2}
               error={tooTall}
               min={toDisplay(10, units)}
+              max={toDisplay(6000, units)}
               onChange={(v) => h > 0 && s.scaleSelected(fromDisplay(v, units) / h, fromDisplay(v, units) / h)}
             />
           </label>

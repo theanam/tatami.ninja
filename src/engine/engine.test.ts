@@ -332,3 +332,34 @@ describe('gaps and entry/exit points', () => {
     expect(plan.xs[last]).toBe(0);
   });
 });
+
+describe('safety limits', () => {
+  it('skips objects larger than any hoop instead of generating millions of stitches', () => {
+    const t0 = performance.now();
+    const p = baseProject([
+      obj({ id: 'big', name: 'Huge', type: 'tatami', geometry: { kind: 'circle', cx: 0, cy: 0, r: 10_000 } }),
+      obj({ id: 'ok', type: 'tatami', geometry: { kind: 'circle', cx: 0, cy: 0, r: 100 } }),
+    ]);
+    const plan = generatePlan(p);
+    expect(performance.now() - t0).toBeLessThan(2000);
+    expect(plan.skipped).toEqual(['big']);
+    expect(plan.objectStats[1].stitches).toBeGreaterThan(50);
+    const w = checkWarnings(p, plan).find((x) => x.kind === 'too-large');
+    expect(w?.severity).toBe('error');
+    expect(w?.message).toMatch(/Huge is too large/);
+  });
+
+  it('skips objects that would be too dense to stitch', () => {
+    const p = baseProject([obj({ id: 'd', type: 'tatami', geometry: { kind: 'circle', cx: 0, cy: 0, r: 2900 }, params: { rowSpacing: 1 } })]);
+    expect(generatePlan(p).skipped).toEqual(['d']);
+  });
+
+  it('stops the plan at the stitch limit', () => {
+    const many = Array.from({ length: 40 }, (_, i) =>
+      obj({ id: `f${i}`, type: 'tatami', geometry: { kind: 'circle', cx: 0, cy: 0, r: 1400 }, params: { rowSpacing: 2 } }),
+    );
+    const plan = generatePlan(baseProject(many));
+    expect(plan.truncated).toBe(true);
+    expect(plan.stitchCount).toBeLessThan(400_000);
+  });
+});

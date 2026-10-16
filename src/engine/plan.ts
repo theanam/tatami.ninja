@@ -1,5 +1,5 @@
-import { CMD, type Bounds, type ObjectStat, type Project, type StitchPlan } from '../model/types';
-import { dist, norm, sub, type P } from './geom';
+import { CMD, type Bounds, type ObjectStat, type Project, type StitchObject, type StitchPlan } from '../model/types';
+import { dist, geometryBounds, norm, sub, type P } from './geom';
 import { generateObject, resolveParams, type Piece } from './objects';
 
 /** Moves up to this length are sewn as a stitch instead of a jump (0.1 mm). */
@@ -9,6 +9,32 @@ export const TRIM_ABOVE = 30;
 /** Longest single stitch or jump most formats accept (DST: 12.1 mm). */
 export const MAX_STEP = 121;
 const TIE = 6;
+/** Objects wider or taller than this (0.1 mm) are not stitched: no hoop is that big. */
+export const MAX_OBJECT_SIZE = 6000;
+/** Rough penetration estimate above which an object is skipped. */
+export const MAX_OBJECT_STITCHES = 400_000;
+/** The whole plan stops here; real designs are far smaller, and this keeps the tab alive. */
+export const MAX_PLAN_STITCHES = 300_000;
+
+/** Cheap upper-bound guess of an object's stitch count from its bounds and spacing. */
+export function estimateStitches(obj: StitchObject, fabricId: string): number {
+  const b = geometryBounds(obj.geometry);
+  if (!b) return 0;
+  const w = b.maxX - b.minX;
+  const h = b.maxY - b.minY;
+  const r = resolveParams(obj, fabricId);
+  const spacing = obj.type === 'satin' ? r.density / 2 : obj.type === 'contour' ? r.contourSpacing : r.rowSpacing;
+  if (obj.type === 'run') return (2 * (w + h)) / Math.max(5, r.stitchLength);
+  return (w * h) / (Math.max(1, spacing) * 30);
+}
+
+/** Reason an object cannot be stitched, or null. */
+export function tooLarge(obj: StitchObject, fabricId: string): 'size' | 'density' | null {
+  if (obj.geometry.kind === 'stitches') return null;
+  const b = geometryBounds(obj.geometry);
+  if (b && (b.maxX - b.minX > MAX_OBJECT_SIZE || b.maxY - b.minY > MAX_OBJECT_SIZE)) return 'size';
+  return estimateStitches(obj, fabricId) > MAX_OBJECT_STITCHES ? 'density' : null;
+}
 
 class Builder {
   xs: number[] = [];
@@ -69,11 +95,18 @@ export function generatePlan(project: Project): StitchPlan {
   const b = new Builder();
   const colorBlocks: string[] = [];
   const objectStats: ObjectStat[] = [];
+  const skipped: string[] = [];
+  let truncated = false;
   let currentThread: string | null = null;
   let pendingTrim = false;
 
   project.objects.forEach((obj, index) => {
     const startCmd = b.cmds.length;
+    if (obj.visible && (truncated || tooLarge(obj, project.fabricPreset))) {
+      if (!truncated) skipped.push(obj.id);
+      objectStats.push({ id: obj.id, stitches: 0, start: startCmd, end: startCmd, bounds: null });
+      return;
+    }
     if (!obj.visible) {
       objectStats.push({ id: obj.id, stitches: 0, start: startCmd, end: startCmd, bounds: null });
       return;
@@ -173,6 +206,7 @@ export function generatePlan(project: Project): StitchPlan {
       end,
       bounds: stitches ? { minX, minY, maxX, maxY } : null,
     });
+    if (b.cmds.length > MAX_PLAN_STITCHES) truncated = true;
   });
 
   if (b.cmds.length) {
@@ -217,6 +251,8 @@ export function generatePlan(project: Project): StitchPlan {
     obj: Int32Array.from(b.obj),
     colorBlocks,
     objectStats,
+    skipped,
+    truncated,
     bounds,
     stitchCount,
     jumps: jumpMoves,

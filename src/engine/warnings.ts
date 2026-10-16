@@ -5,7 +5,7 @@ import { areasOf, distToSegment, geometryBounds, type Area, type P } from './geo
 
 export interface Warning {
   id: string;
-  kind: 'out-of-hoop' | 'density' | 'short-stitches' | 'small-text' | 'gap';
+  kind: 'out-of-hoop' | 'density' | 'short-stitches' | 'small-text' | 'gap' | 'too-large';
   severity: 'error' | 'warning';
   title: string;
   message: string;
@@ -38,6 +38,28 @@ export function checkWarnings(project: Project, plan: StitchPlan): Warning[] {
     if (n.length <= 1) return n[0] ?? '';
     return `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
   };
+
+  // 0. Objects the engine refused to stitch (too large or too dense), and a truncated plan.
+  for (const id of plan.skipped ?? []) {
+    out.push({
+      id: `too-large-${id}`,
+      kind: 'too-large',
+      severity: 'error',
+      title: 'Too large to stitch',
+      message: `${names.get(id) ?? 'An object'} is too large or too dense to stitch, so it is skipped. Scale it down to fit the hoop.`,
+      objectIds: [id],
+    });
+  }
+  if (plan.truncated) {
+    out.push({
+      id: 'truncated',
+      kind: 'too-large',
+      severity: 'error',
+      title: 'Stitch limit reached',
+      message: 'This design has more than 300,000 stitches, so the rest was not generated. Scale it down or remove objects.',
+      objectIds: [],
+    });
+  }
 
   // 1. Out of hoop.
   const hw = project.hoop.width / 2;

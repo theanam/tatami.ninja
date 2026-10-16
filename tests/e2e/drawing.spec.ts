@@ -111,3 +111,61 @@ test.describe('drawing tools', () => {
     await expect(page.locator('.overlay-layer text', { hasText: / mm$/ })).toBeVisible();
   });
 });
+
+test.describe('transforming lettering', () => {
+  async function addText(page: Page) {
+    await newEmptyDesign(page);
+    await page.keyboard.press('t');
+    const c = await canvasCenter(page);
+    await page.mouse.click(c.x, c.y);
+    await expect(page.locator('.row', { hasText: '“Text”' })).toBeVisible();
+  }
+  const height = (page: Page) => page.getByLabel('Letter height in millimetres');
+  const selBox = async (page: Page) => (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
+
+  test('corner drag scales proportionally about the opposite corner', async ({ page }) => {
+    await addText(page);
+    const before = await selBox(page);
+    const handle = (await page.locator('[data-handle="corner:1,1"]').boundingBox())!;
+    await page.mouse.move(handle.x + 4, handle.y + 4);
+    await page.mouse.down();
+    // A fast drag with few events must not compound the scale.
+    await page.mouse.move(handle.x + 4 + before.width / 2, handle.y + 4 + before.height / 2, { steps: 3 });
+    await page.mouse.up();
+    const after = await selBox(page);
+    expect(Math.abs(after.x - before.x)).toBeLessThan(2);
+    expect(Math.abs(after.y - before.y)).toBeLessThan(2);
+    expect(after.width / before.width).toBeGreaterThan(1.3);
+    expect(after.width / before.width).toBeLessThan(1.7);
+    const h = Number(await height(page).inputValue());
+    expect(h).toBeGreaterThan(13);
+    expect(h).toBeLessThan(17);
+    // Editing the text keeps the new size.
+    await page.getByLabel('Text', { exact: true }).fill('Texts');
+    await expect(page.locator('.row', { hasText: '“Texts”' })).toBeVisible();
+    expect(Number(await height(page).inputValue())).toBeCloseTo(h, 1);
+    // Undo restores the original size in one step.
+    await page.keyboard.press('Escape');
+    await page.locator('.overlay-layer').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.locator('.row', { hasText: '“Text”' }).click();
+    await expect(height(page)).toHaveValue('10.0');
+  });
+
+  test('text can be dragged by grabbing between its letters', async ({ page }) => {
+    await addText(page);
+    const box = await selBox(page);
+    // Release the selection first, then grab the middle of the text box.
+    await page.keyboard.press('Escape');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 + 40, { steps: 2 });
+    await page.mouse.up();
+    const after = await selBox(page);
+    expect(after.x - box.x).toBeGreaterThan(75);
+    expect(after.x - box.x).toBeLessThan(85);
+    expect(after.y - box.y).toBeGreaterThan(35);
+    expect(after.y - box.y).toBeLessThan(45);
+  });
+});

@@ -167,6 +167,10 @@ export interface Bounds {
 
 /** Engine output: a flat command list in 0.1 mm units. */
 export interface StitchPlan {
+  /** Objects skipped because they are too large or dense to stitch safely. */
+  skipped?: string[];
+  /** True when the plan stopped early at the stitch limit. */
+  truncated?: boolean;
   xs: Int32Array;
   ys: Int32Array;
   cmds: Uint8Array;
