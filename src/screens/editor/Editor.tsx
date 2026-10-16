@@ -9,6 +9,7 @@ import { useEditor } from '../../store/editor';
 import { NotFound } from '../NotFound';
 import { openFromDisk, persistOpened, pickStitchFile, projectFromFile, takePendingTrace, type Opened } from '../actions';
 import { ArrangePanel } from './ArrangePanel';
+import { LibraryDialog } from './LibraryDialog';
 import { AutoDigitizeDialog } from './AutoDigitizeDialog';
 import { BackdropPanel } from './BackdropPanel';
 import { Canvas } from './Canvas';
@@ -199,6 +200,7 @@ function EditorShell() {
       <StatusBar />
       {dialog === 'export' && plan && <ExportDialog onClose={() => s.setDialog(null)} />}
       {dialog === 'auto-digitize' && <AutoDigitizeDialog onClose={() => s.setDialog(null)} />}
+      {dialog === 'library' && <LibraryDialog onClose={() => s.setDialog(null)} />}
     </div>
   );
 }

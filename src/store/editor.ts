@@ -88,7 +88,7 @@ export interface EditorState {
   dirtyIds: string[];
   saveState: 'saved' | 'saving';
   sim: SimState;
-  dialog: null | 'export' | 'auto-digitize' | 'lettering' | 'shortcuts';
+  dialog: null | 'export' | 'auto-digitize' | 'lettering' | 'shortcuts' | 'library';
   /** Image the tracer opens with (a data URL), when it was opened from an import. */
   traceSource: string | null;
   warningsOpen: boolean;

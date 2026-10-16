@@ -101,7 +101,7 @@ export function ToolRail({ readOnly, onImportSvg, onAddImage }: { readOnly: bool
                     style={(() => {
                       // Fixed beside the button: the rail scrolls and would clip it.
                       const r = btnRef.current?.getBoundingClientRect();
-                      return r ? { left: r.right + 8, top: Math.min(r.top, window.innerHeight - 160) } : undefined;
+                      return r ? { left: r.right + 8, top: Math.min(r.top, window.innerHeight - 230) } : undefined;
                     })()}
                   >
                     <button
@@ -128,6 +128,19 @@ export function ToolRail({ readOnly, onImportSvg, onAddImage }: { readOnly: bool
                       <span>
                         <b>Image (PNG / JPG)</b>
                         <span className="meta">Trace it into stitches, or use it as a backdrop</span>
+                      </span>
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setImportOpen(false);
+                        useEditor.getState().setDialog('library');
+                      }}
+                    >
+                      <Icon name="copy-grid" />
+                      <span>
+                        <b>Design library</b>
+                        <span className="meta">Shapes, frames and motifs</span>
                       </span>
                     </button>
                   </div>,

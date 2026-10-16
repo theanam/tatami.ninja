@@ -470,3 +470,14 @@ test('export can split a large design into hoopings (zip with alignment marks)',
   await dialog.getByRole('button', { name: /^Download PES/ }).click();
   expect((await dl).suggestedFilename()).toBe('harbor-club-badge-4-hoopings.zip');
 });
+
+test('the design library adds ready-made shapes', async ({ page }) => {
+  await openSample(page);
+  await page.getByRole('button', { name: 'Import (I)' }).click();
+  await page.getByRole('menu', { name: 'Import' }).getByRole('menuitem', { name: /Design library/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Design library' });
+  await dialog.getByRole('group', { name: 'Category' }).getByRole('button', { name: 'Frames' }).click();
+  await dialog.getByRole('listitem', { name: 'Add Scallop frame' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.seq-list .row')).toHaveCount(5);
+});
