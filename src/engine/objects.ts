@@ -27,6 +27,8 @@ export interface ResolvedParams {
   fillPattern: FillPattern;
   patternSpacing: number;
   randomShift: boolean;
+  motif: string;
+  motifSize: number;
   rowSpacing: number;
   stitchLength: number;
   repeats: number;
@@ -61,7 +63,9 @@ export function resolveParams(obj: StitchObject, fabricId: string): ResolvedPara
   return {
     angleDeg: p.angleDeg ?? 45,
     fillPattern: p.fillPattern ?? 'rows',
-    patternSpacing: p.patternSpacing ?? 30,
+    patternSpacing: p.patternSpacing ?? (p.fillPattern === 'motif' ? 10 : 30),
+    motif: p.motif ?? 'wave',
+    motifSize: p.motifSize ?? 60,
     randomShift: p.randomShift ?? false,
     rowSpacing: p.rowSpacing ?? f.rowSpacing,
     stitchLength: p.stitchLength ?? (obj.type === 'run' ? 25 : obj.type === 'contour' ? 25 : 35),
@@ -95,7 +99,7 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
       const out: Piece[] = [];
       let cur = entry;
       for (const path of pathsOf(g)) {
-        const st = styledRun(path.points, path.closed, { style: r.runStyle, stitchLength: r.stitchLength, width: r.styleWidth, knotSpacing: r.knotSpacing }, cur);
+        const st = styledRun(path.points, path.closed, { style: r.runStyle, stitchLength: r.stitchLength, width: r.styleWidth, knotSpacing: r.knotSpacing, motif: r.motif, motifSize: r.motifSize }, cur);
         if (st.length) {
           out.push({ pts: st });
           cur = st[st.length - 1];
@@ -117,6 +121,8 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
               stitchLen: r.stitchLength,
               angleDeg: r.angleDeg,
               startNear: last,
+              motif: r.motif,
+              motifSize: r.motifSize,
             })
           : obj.type === 'tatami'
           ? fillAreas(areas, {

@@ -1,5 +1,6 @@
 import { add, dist, lerp, norm, scale, sub, type P } from './geom';
 import type { RunStyle } from '../model/types';
+import { getMotif, motifAlong } from './motifs';
 import { beanStitches, runStitches } from './run';
 
 export type { RunStyle } from '../model/types';
@@ -105,6 +106,8 @@ export interface RunStyleOptions {
   stitchLength: number;
   width: number;
   knotSpacing: number;
+  motif?: string;
+  motifSize?: number;
 }
 
 /** Stitch one path in the given run style. */
@@ -119,6 +122,11 @@ export function styledRun(points: P[], closed: boolean, o: RunStyleOptions, star
     case 'e':
     case 'v':
       return prongStitches(points, closed, o.stitchLength, o.width, o.style, startNear);
+    case 'motif': {
+      const m = getMotif(o.motif);
+      const w = Math.max(20, o.motifSize ?? 60);
+      return runStitches(motifAlong(points, closed, m, w, w * m.aspect), false, Math.min(o.stitchLength, 20), startNear);
+    }
     case 'triple':
       return beanStitches(runStitches(points, closed, o.stitchLength, startNear), 3);
     default:

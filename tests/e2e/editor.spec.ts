@@ -349,3 +349,19 @@ test('fill patterns: radial, net and random shift', async ({ page }) => {
   await expect(page.getByLabel('Random shift')).toHaveCount(0);
   await expect.poll(() => stitchTotal(page)).toBeLessThan(before);
 });
+
+test('motif fills and motif runs use the motif library', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').filter({ hasText: 'Badge fill' }).click();
+  await page.getByLabel('Pattern').selectOption('motif');
+  await page.getByRole('radio', { name: 'Heart' }).click();
+  await expect(page.getByRole('radio', { name: 'Heart' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByLabel('Motif row gap in millimetres')).toBeVisible();
+  await expect(page.locator('[data-pattern="motif"]')).toHaveCount(1);
+  await page.locator('.seq-list .row').filter({ hasText: 'Inner ring' }).click();
+  const before = await stitchTotal(page);
+  await page.getByLabel('Style', { exact: true }).selectOption('motif');
+  await page.getByRole('radio', { name: 'Scallop' }).click();
+  await expect(page.getByLabel('Motif size in millimetres')).toBeVisible();
+  await expect.poll(() => stitchTotal(page)).not.toBe(before);
+});

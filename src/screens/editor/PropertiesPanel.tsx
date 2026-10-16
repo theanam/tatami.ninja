@@ -8,6 +8,7 @@ import { objectsBounds, satinWidth } from '../../model/transform';
 import type { FillPattern, RunStyle, StitchObject, StitchType, UnderlayType } from '../../model/types';
 import { fmtLen, fromDisplay, toDisplay } from '../../model/units';
 import { FABRICS, HOOPS, hoopLabel, MACHINES, UNDERLAY_OPTIONS } from '../../presets';
+import { MotifGrid } from '../../components/MotifGrid';
 import { ThreadPicker } from '../../components/ThreadPicker';
 import { LenRow } from './PanelRows';
 import { gridSizes } from './snap';
@@ -60,6 +61,7 @@ const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
   { value: 'net', label: 'Net' },
   { value: 'zigzag-net', label: 'Zigzag net' },
   { value: 'cross', label: 'Cross-hatch' },
+  { value: 'motif', label: 'Motif' },
 ];
 
 const RUN_STYLES: { value: RunStyle; label: string }[] = [
@@ -70,6 +72,7 @@ const RUN_STYLES: { value: RunStyle; label: string }[] = [
   { value: 'candlewick', label: 'Candlewick' },
   { value: 'e', label: 'E stitch' },
   { value: 'v', label: 'V stitch' },
+  { value: 'motif', label: 'Motif' },
 ];
 
 function MonogramOptions() {
@@ -204,7 +207,9 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
                   onChange={(v) => s.setParams(ids, { angleDeg: Math.round(v) }, 'angle')}
                 />
               )}
-              {OPEN_PATTERNS.includes(r.fillPattern) ? (
+              {r.fillPattern === 'motif' ? (
+                <LenRow label="Row gap" name="Motif row gap" value={r.patternSpacing} min={0} max={100} step={1} units={units} onChange={(v) => s.setParams(ids, { patternSpacing: v }, 'patternSpacing')} />
+              ) : OPEN_PATTERNS.includes(r.fillPattern) ? (
                 <LenRow label="Spacing" name="Pattern spacing" value={r.patternSpacing} min={10} max={100} step={1} units={units} onChange={(v) => s.setParams(ids, { patternSpacing: v }, 'patternSpacing')} />
               ) : (
                 <LenRow label="Density" name="Row spacing" value={r.rowSpacing} min={2} max={10} step={0.5} units={units} onChange={(v) => s.setParams(ids, { rowSpacing: v }, 'rowSpacing')} />
@@ -253,7 +258,7 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
                 onChange={(v) => s.setParams(ids, { runStyle: v, repeats: v === 'triple' ? 3 : 1 })}
               />
             </div>
-            {r.runStyle !== 'single' && r.runStyle !== 'triple' && (
+            {r.runStyle !== 'single' && r.runStyle !== 'triple' && r.runStyle !== 'motif' && (
               <div className="prop-grid">
                 <LenRow
                   label={r.runStyle === 'candlewick' ? 'Knot size' : 'Width'}
@@ -270,6 +275,14 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
                 )}
               </div>
             )}
+          </>
+        )}
+        {((o.type === 'tatami' && r.fillPattern === 'motif') || (o.type === 'run' && r.runStyle === 'motif')) && (
+          <>
+            <MotifGrid value={r.motif} onChange={(m) => s.setParams(ids, { motif: m })} />
+            <div className="prop-grid">
+              <LenRow label="Motif size" name="Motif size" value={r.motifSize} min={20} max={300} step={1} units={units} onChange={(v) => s.setParams(ids, { motifSize: v }, 'motifSize')} />
+            </div>
           </>
         )}
         {o.type === 'tatami' && r.fillPattern === 'rows' && (

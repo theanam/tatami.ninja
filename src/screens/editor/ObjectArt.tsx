@@ -58,10 +58,10 @@ export const ObjectArt = memo(function ObjectArt({
     if (o.type !== 'tatami' || r.fillPattern === 'rows') return '';
     const open = OPEN_PATTERNS.includes(r.fillPattern);
     const spacing = open ? r.patternSpacing : Math.max(10, r.rowSpacing * 5);
-    return patternLines(areasOf(g), { pattern: r.fillPattern, spacing, angleDeg: r.angleDeg })
+    return patternLines(areasOf(g), { pattern: r.fillPattern, spacing, angleDeg: r.angleDeg, motif: r.motif, motifSize: r.motifSize })
       .map((l) => `M${l.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('L')}`)
       .join('');
-  }, [o.type, g, r.fillPattern, r.patternSpacing, r.rowSpacing, r.angleDeg]);
+  }, [o.type, g, r.fillPattern, r.patternSpacing, r.rowSpacing, r.angleDeg, r.motif, r.motifSize]);
 
   const satin = useMemo(() => {
     if (o.type !== 'satin' && o.type !== 'applique') return null;
