@@ -75,6 +75,8 @@ export interface ObjectParams {
   /** Satin width (0.1 mm) when the satin follows a single path/outline. */
   width?: number;
   shortStitches?: boolean;
+  /** Satin on a filled shape: follow its strokes (best for small lettering). */
+  strokeSatin?: boolean;
   /** Split satin stitches wider than this (0.1 mm). */
   splitAbove?: number;
   /** Contour fill line spacing (0.1 mm). */

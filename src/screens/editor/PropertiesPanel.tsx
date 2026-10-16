@@ -346,6 +346,14 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
             <Switch id="rshift" label="Random shift" checked={r.randomShift} onChange={(v) => s.setParams(ids, { randomShift: v })} />
           </div>
         )}
+        {o.type === 'satin' && closed && o.geometry.kind !== 'satin' && (
+          <div className="prop-line">
+            <label className="prop-label" htmlFor="strokes">
+              Follow strokes
+            </label>
+            <Switch id="strokes" label="Follow strokes" checked={!!o.params.strokeSatin} onChange={(v) => s.setParams(ids, { strokeSatin: v })} />
+          </div>
+        )}
         {o.type === 'satin' && (
           <>
             <div className="prop-line">

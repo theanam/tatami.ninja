@@ -320,3 +320,18 @@ test('lettering can use a font file you add', async ({ page }) => {
   await picker.getByRole('button', { name: 'Yours' }).click();
   await expect(picker.getByRole('option', { name: /Pacifico/ })).toHaveCount(1);
 });
+
+test('small lettering can follow its strokes', async ({ page }) => {
+  await newEmptyDesign(page);
+  await page.keyboard.press('t');
+  const c = await canvasCenter(page);
+  await page.mouse.click(c.x, c.y);
+  await page.keyboard.type('Hello');
+  await page.keyboard.press('Enter');
+  const status = page.locator('.statusbar .chip').first();
+  await expect(status).toContainText(/[1-9][\d,]* stitches/);
+  const before = await status.innerText();
+  await page.getByRole('switch', { name: 'Follow strokes' }).click();
+  await expect(page.getByRole('switch', { name: 'Follow strokes' })).toHaveAttribute('aria-checked', 'true');
+  await expect(status).not.toHaveText(before);
+});

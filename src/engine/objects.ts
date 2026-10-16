@@ -7,6 +7,7 @@ import { areasOf, pathsOf, pointInArea, principalAngle, type Area, type P } from
 import { OPEN_PATTERNS, patternFill } from './patterns';
 import { runStitches } from './run';
 import { prongStitches, styledRun } from './runStyles';
+import { strokeColumns } from './skeleton';
 import {
   centerLine,
   columnFromPath,
@@ -147,6 +148,18 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
       }
       const areas = areasOf(g);
       if (!areas.length) return [];
+      // Satin along the strokes (small lettering): one column per stroke.
+      if (obj.params.strokeSatin) {
+        const out: Piece[] = [];
+        let cur = entry;
+        for (const area of areas) {
+          for (const col of strokeColumns([area], r.pullComp)) {
+            out.push(...satinColumnPieces(col, { ...r, underlay: r.underlay === 'none' ? 'none' : 'center-run', pullComp: 0 }, cur));
+            cur = lastPoint(out) ?? cur;
+          }
+        }
+        if (out.length) return out;
+      }
       // Satin on a closed shape: zigzag across each part's short direction (e.g. per glyph).
       const out: Piece[] = [];
       let cur = entry;

@@ -185,7 +185,7 @@ export function checkWarnings(project: Project, plan: StitchPlan): Warning[] {
         kind: 'small-text',
         severity: 'warning',
         title: 'Lettering too small',
-        message: `${o.name} is ${fmt(o.text.height)} mm tall. Letters under 5 mm lose detail when sewn.`,
+        message: `${o.name} is ${fmt(o.text.height)} mm tall. Letters under 5 mm lose detail when sewn; Follow strokes helps.`,
         objectIds: [o.id],
       });
     }
