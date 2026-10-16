@@ -114,7 +114,8 @@ export function HelpPage() {
           Import a PNG or JPG (Import → Image) and it opens in the tracer. Trace it into stitches, or choose <b>Use as backdrop</b> to draw over it by hand; the
           Backdrop section on the right sets its opacity, visibility and lock. Use the Pen, Fill and Satin tools to
           draw on top, then hide the backdrop. Or use <b>Trace image</b>: in Colors mode it reduces the image to the colors it really contains; in Threshold mode it makes black-and-white line art with an adjustable contrast cut-off. It traces at high resolution, then turns wide areas into fills and
-          narrow ones into satin, dropping tiny specks.
+          narrow ones into satin, dropping tiny specks. <b>Cross stitch</b> mode turns the image into a grid of crosses, and <b>Photo</b> mode shades it with
+          rows of zigzag (in color, or mono with one thread).
         </p>
       </section>
 
@@ -122,16 +123,21 @@ export function HelpPage() {
         <h2>Stitch types</h2>
         <dl className="info-dl">
           <dt>Run</dt>
-          <dd>A line of stitches along a path. Use it for outlines and details. Repeats: 3 gives a bold bean stitch.</dd>
+          <dd>A line of stitches along a path. Styles: single, triple (bean), stem, chain, candlewick, E and V (appliqué edges) and motif.</dd>
           <dt>Satin</dt>
-          <dd>Smooth zigzag between two rails — best for borders and lettering 1–10 mm wide. Very wide satin is split automatically.</dd>
+          <dd>Smooth zigzag between two rails — best for borders and lettering 1–10 mm wide. Very wide satin is split automatically. On a filled shape, <b>Follow strokes</b> sews it as columns along its strokes (best for small lettering).</dd>
           <dt>Tatami</dt>
-          <dd>Rows of staggered stitches for large areas. Drag the round knob on the canvas to set the fill angle.</dd>
+          <dd>Rows of staggered stitches for large areas. Drag the round knob on the canvas to set the fill angle. <b>Pattern</b> swaps the rows for radial, spiral, concentric circles, net, zigzag net, cross-hatch, lines, motifs, stipple, echo or cross stitch; <b>Random shift</b> hides the brick lines of plain rows.</dd>
           <dt>Contour</dt>
           <dd>Rows that follow the outline inward, for an organic, textured look.</dd>
           <dt>Appliqué</dt>
-          <dd>Placement line, stop to place fabric, tack-down, stop to trim, then a satin cover edge.</dd>
+          <dd>Placement line, stop to place fabric, tack-down (run or zigzag), stop to trim, then a cover edge (satin, zigzag, E, V or none). <b>Cut file</b> downloads the fabric piece as a true-size SVG.</dd>
         </dl>
+        <p>
+          <b>Arrange</b> (right panel) flips, aligns, distributes and groups objects, copies them around a circle or in a grid, adds echo lines, and fills the
+          hoop around them with a quilting background. <b>Region to line</b> (Advanced) turns a fill into one spiral run. The Design section can <b>remove hidden
+          stitches</b> under later objects. Import → <b>Design library</b> adds ready-made shapes and frames.
+        </p>
       </section>
 
       <section className="info-section">
@@ -141,7 +147,8 @@ export function HelpPage() {
           undoes your typing. Double-click any lettering (or select it and press Enter) to edit it again.
         </p>
         <p>
-          The toolbar above the text sets the font, weight, height, letter spacing and an arc over or under a logo. The font list includes every Google Font,
+          The Lettering settings in the right panel set the font, weight, height and spacing, the baseline (straight, arc, circle or spiral) and a warp.
+          With the Lettering tool active, <b>Monogram</b> adds three grouped initials. Add your own font file from the font picker. The font list includes every Google Font,
           each shown in its own typeface. Search by name or filter by style. Google Fonts load when you pick them; the built-in fonts also work offline. Keep
           letters at least 5 mm tall; smaller text loses detail and shows a warning.
         </p>
@@ -189,6 +196,15 @@ export function HelpPage() {
         </dl>
         <p>
           You can also open DST, PES, JEF and EXP files to view and recolor them. They open as stitches only, so shapes cannot be edited.
+        </p>
+      </section>
+
+      <section className="info-section">
+        <h2>Big designs, names and lace</h2>
+        <p>
+          At export, <b>Hooping</b> splits a design that is bigger than your hoop into several hoopings with alignment marks (one file each, in a zip).{' '}
+          <b>Batch names</b> makes one file per name from a list. The <b>Free-standing lace</b> fabric adds a lattice underlay and warns about parts that do
+          not touch the rest. Opened stitch files can be turned into editable objects with <b>Make editable</b>.
         </p>
       </section>
 

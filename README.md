@@ -27,12 +27,13 @@
 
 ## What you can do
 
-- **Bring your artwork.** Import an SVG and every shape becomes stitches: fills, run lines and satin borders, in the SVG's own colors. Or drop in a PNG or JPG and trace over it by hand, or use **Trace image**: it keeps only colors that really occur in the picture (or makes clean black-and-white line art in Threshold mode) and traces at high resolution with sub-pixel accuracy.
-- **Edit objects, not stitches.** Switch any shape between run, satin, tatami fill, contour fill and appliqué, then adjust the fill angle, density and stitch length. Stitches regenerate as you work.
-- **Draw and letter.** Use pen, satin column, fill and shape tools, with node editing. Type lettering directly on the canvas in any Google Font, picked from a searchable list that previews every family, and set it on an arc if you like.
+- **Bring your artwork.** Import an SVG and every shape becomes stitches: fills, run lines and satin borders, in the SVG's own colors. Or drop in a PNG or JPG and trace over it by hand, or use **Trace image**: it keeps only colors that really occur in the picture (or makes clean black-and-white line art in Threshold mode) and traces at high resolution with sub-pixel accuracy. It can also make cross stitch or photo stitch from a picture. A built-in design library adds shapes, frames and motifs.
+- **Edit objects, not stitches.** Switch any shape between run, satin, tatami fill, contour fill and appliqué, then adjust the fill angle, density and stitch length. Fills come in many patterns (radial, spiral, net, motifs, stipple, echo, cross stitch…), runs in many styles (stem, chain, candlewick, E/V, motif), and appliqué with your choice of tack-down and cover edge plus a cut file. Stitches regenerate as you work.
+- **Arrange and quilt.** Flip, align, distribute and group; copy around a circle or in a grid; add echo lines or a stipple background around a design; remove hidden stitches under top layers.
+- **Draw and letter.** Use pen, satin column, fill and shape tools, with node editing. Type lettering directly on the canvas in any Google Font (or your own font file), set it on an arc, a circle or a spiral, warp it, or make a monogram. Small text can follow its strokes as satin columns.
 - **Start from good defaults.** Pick your machine, hoop and fabric (remembered for next time), and the fabric preset sets density, underlay and pull compensation for you.
 - **See it before you sew it.** Preview a realistic thread render on your fabric, watch a stitch-out simulation, and get warnings for designs outside the hoop, density hotspots, short stitches and gaps between colors.
-- **Export for your machine.** Download PES, DST, JEF, EXP, VP3, XXX or HUS, with a printable color sheet. You can also open existing DST, PES, JEF and EXP files to recolor them.
+- **Export for your machine.** Download PES, DST, JEF, EXP, VP3, XXX or HUS, with a printable color sheet. Split big designs into several hoopings with alignment marks, or make one file per name from a list. Open existing DST, PES, JEF and EXP files to recolor them, or make them editable again.
 - **Keep your work private.** Designs autosave in your browser and are never uploaded. Save a design as a `.xtatami` file (⌘S) to back up, share, or keep working on it later with Open file (⌘O).
 
 <table>
