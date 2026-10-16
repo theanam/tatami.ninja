@@ -3,6 +3,7 @@ import { alignObjects, backgroundObject, circleCopies, distributeObjects, echoOb
 import { booleanAreas, offsetAreas, type BoolOp } from '../engine/clip';
 import { areasOf, unionBounds, type Area } from '../engine/geom';
 import type { Warning } from '../engine/warnings';
+import { stitchesToObjects } from '../importers/stitchToObjects';
 import { ensureThread, newId } from '../model/project';
 import { objectsBounds, rotateObject, runToSatin, scaleObject, setSatinWidth, translateObject } from '../model/transform';
 import type {
@@ -152,6 +153,8 @@ export interface EditorState {
   copyInGrid(rows: number, cols: number, gapX: number, gapY: number): void;
   addEcho(count: number, spacing: number): void;
   regionToLine(id: string, spacing: number): void;
+  /** Turn raw stitches (opened stitch files) into editable objects. */
+  makeEditable(): void;
   addBackground(kind: BackgroundKind, margin: number): void;
   scaleToFitHoop(): void;
   autoOrderByColor(): void;
@@ -500,6 +503,14 @@ export const useEditor = create<EditorState>((set, get) => {
         return { ...p, objects };
       }, { dirty: [echo.id] });
       set({ selection: [echo.id] });
+    },
+
+    makeEditable() {
+      const p0 = get().project;
+      if (!p0) return;
+      const objects = p0.objects.flatMap((o) => (o.geometry.kind === 'stitches' ? stitchesToObjects(o) : [o]));
+      get().update((p) => ({ ...p, source: 'design', objects }), { dirty: objects.map((o) => o.id) });
+      set({ selection: [] });
     },
 
     regionToLine(id, spacing) {

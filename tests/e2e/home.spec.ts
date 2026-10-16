@@ -151,3 +151,16 @@ test.describe('home and pages', () => {
     await expect(page.getByText(/not saved in this browser/)).toBeVisible();
   });
 });
+
+test('an opened stitch file can be made editable', async ({ page }) => {
+  await withoutFilePickers(page);
+  await page.goto('/');
+  await chooseFile(page, () => page.getByRole('button', { name: 'Open file' }).click(), { name: 'badge.dst', mimeType: 'application/octet-stream', buffer: stitchFile('DST') });
+  await page.waitForURL(/#\/design\//);
+  await expect(page.getByText('Stitch file · recolor only')).toBeVisible();
+  await page.getByRole('button', { name: 'Make editable' }).click();
+  await expect(page.getByText('Stitch file · recolor only')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Pen/ })).toBeEnabled();
+  await page.locator('.seq-list .row').filter({ hasText: /fill/ }).first().click();
+  await expect(page.getByLabel('Angle in degrees')).toBeVisible();
+});

@@ -63,6 +63,13 @@ export function SequencePanel({ readOnly }: { readOnly: boolean }) {
             </button>
           </div>
         )}
+        {readOnly && project.objects.some((o) => o.geometry.kind === 'stitches') && (
+          <div className="seq-actions">
+            <button className="btn small" onClick={() => s.makeEditable()}>
+              Make editable
+            </button>
+          </div>
+        )}
       </div>
       {project.objects.length === 0 ? (
         <div className="seq-empty">No objects yet. Shapes you import or draw appear here in sewing order.</div>
