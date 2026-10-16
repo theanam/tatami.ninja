@@ -8,7 +8,7 @@ import { rgbToHex } from '../../model/project';
 import { useEditor } from '../../store/editor';
 import { backdropFromImage } from '../actions';
 
-type Mode = 'colors' | 'threshold' | 'cross';
+type Mode = 'colors' | 'threshold' | 'cross' | 'photo';
 
 /** Trace an image into stitch objects: color reduction or a black-and-white threshold. */
 export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
@@ -27,6 +27,8 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
   const [sizeMm, setSizeMm] = useState(Math.round((Math.min(project.hoop.width, project.hoop.height) * 0.6) / 10));
   const [speck, setSpeck] = useState(2);
   const [cellMm, setCellMm] = useState(2.5);
+  const [photoMono, setPhotoMono] = useState(false);
+  const [rowMm, setRowMm] = useState(1.2);
   const [show, setShow] = useState<'trace' | 'original'>('trace');
   const [outlines, setOutlines] = useState(true);
   const [result, setResult] = useState<AutoDigitizeResult | null>(null);
@@ -65,6 +67,8 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
         lineColor,
         size: sizeMm * 10,
         cellSize: Math.round(cellMm * 10),
+        photoMono,
+        rowGap: Math.round(rowMm * 10),
         minAreaMm2: speck,
         threads: project.threads,
       });
@@ -80,7 +84,7 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
         });
     }, 180);
     return () => window.clearTimeout(t);
-  }, [raster, mode, colors, removeBg, fillUnder, threshold, invert, lineColor, sizeMm, speck, cellMm, project.threads, client]);
+  }, [raster, mode, colors, removeBg, fillUnder, threshold, invert, lineColor, sizeMm, speck, cellMm, photoMono, rowMm, project.threads, client]);
 
   // Draw the trace preview (or the original) at full trace resolution.
   useEffect(() => {
@@ -207,9 +211,42 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                   { value: 'colors', label: 'Colors' },
                   { value: 'threshold', label: 'Threshold' },
                   { value: 'cross', label: 'Cross stitch' },
+                  { value: 'photo', label: 'Photo' },
                 ]}
               />
-              {mode !== 'threshold' ? (
+              {mode === 'photo' && (
+                <>
+                  <SegmentedControl<'color' | 'mono'>
+                    label="Photo style"
+                    grid
+                    value={photoMono ? 'mono' : 'color'}
+                    onChange={(v) => setPhotoMono(v === 'mono')}
+                    options={[
+                      { value: 'color', label: 'Color' },
+                      { value: 'mono', label: 'Mono' },
+                    ]}
+                  />
+                  <div className="prop-grid">
+                    <ParamRow label="Rows" value={rowMm} min={0.6} max={3} step={0.1} unit="mm" decimals={1} numLabel="Row spacing in millimetres" onChange={setRowMm} />
+                    {!photoMono && <ParamRow label="Colors" value={colors} min={2} max={12} step={1} unit="" decimals={0} numLabel="Number of colors" onChange={(v) => setColors(Math.round(v))} />}
+                  </div>
+                  {photoMono ? (
+                    <label className="check">
+                      Thread
+                      <input type="color" aria-label="Thread color" value={lineColor.toLowerCase()} onChange={(e) => setLineColor(e.target.value)} />
+                    </label>
+                  ) : (
+                    result && (
+                      <div className="ad-palette" aria-label="Colors found">
+                        {result.palette.map((c, i) => (
+                          <span key={i} className={`swatch-dot lg${i === result.background ? ' removed' : ''}`} style={{ background: rgbToHex(...c) }} title={rgbToHex(...c)} />
+                        ))}
+                      </div>
+                    )
+                  )}
+                </>
+              )}
+              {mode === 'photo' ? null : mode !== 'threshold' ? (
                 <>
                   <div className="prop-grid">
                     <ParamRow label="Colors" value={colors} min={2} max={12} step={1} unit="" decimals={0} numLabel="Number of colors" onChange={(v) => setColors(Math.round(v))} />
@@ -287,7 +324,7 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                   numLabel="Longest side in millimetres"
                   onChange={(v) => setSizeMm(Math.round(v))}
                 />
-                {mode !== 'cross' && <ParamRow label="Drop specks" value={speck} min={0.5} max={20} step={0.5} unit="mm²" decimals={1} numLabel="Drop areas smaller than square millimetres" onChange={setSpeck} />}
+                {mode !== 'cross' && mode !== 'photo' && <ParamRow label="Drop specks" value={speck} min={0.5} max={20} step={0.5} unit="mm²" decimals={1} numLabel="Drop areas smaller than square millimetres" onChange={setSpeck} />}
               </div>
               <label className="check">
                 <input type="checkbox" checked={keepBackdrop} onChange={(e) => setKeepBackdrop(e.target.checked)} />
@@ -297,6 +334,8 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                 <p className="note">
                   {mode === 'cross'
                     ? `${result.objects.length} colors of cross stitch.`
+                    : mode === 'photo'
+                    ? `${result.objects.length} photo layers.`
                     : `${result.objects.length} objects: ${fills} fills, ${satins} satin.${result.dropped ? ` ${result.dropped} specks dropped.` : ''}`}
                 </p>
               )}

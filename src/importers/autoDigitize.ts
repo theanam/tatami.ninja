@@ -12,6 +12,7 @@ import { normalizeAreas } from '../engine/clip';
 import type { Area, P } from '../engine/geom';
 import { colorName, ensureThread, newId, normalizeHex, rgbToHex } from '../model/project';
 import type { Pt, StitchObject, Thread } from '../model/types';
+import { photoStitch } from './photoStitch';
 import { blur3, luminance, otsu, ringArea, ringLength, traceField } from './trace';
 
 export interface RasterImage {
@@ -237,9 +238,13 @@ export function traceMask(mask: Uint8Array, w: number, h: number): Area[] {
 }
 
 export interface AutoDigitizeOptions {
-  mode?: 'colors' | 'threshold' | 'cross';
+  mode?: 'colors' | 'threshold' | 'cross' | 'photo';
   /** Cross stitch mode: cell size (0.1 mm). */
   cellSize?: number;
+  /** Photo mode: one thread shading by darkness (uses lineColor). */
+  photoMono?: boolean;
+  /** Photo mode: row spacing (0.1 mm). */
+  rowGap?: number;
   colors: number;
   /** Threshold mode: 0–255 gray level; omit for automatic (Otsu). */
   threshold?: number | null;
@@ -321,6 +326,7 @@ interface Region {
 
 export function autoDigitize(img: RasterImage, o: AutoDigitizeOptions): AutoDigitizeResult {
   if (o.mode === 'cross') return crossStitchImage(img, o);
+  if (o.mode === 'photo') return photoImage(img, o);
   const { width: w, height: h } = img;
   const preview = new Uint8ClampedArray(w * h * 4);
   const checker = (i: number) => {
@@ -547,4 +553,29 @@ function crossStitchImage(img: RasterImage, o: AutoDigitizeOptions): AutoDigitiz
     for (const a of merged) for (const r of [a.outer, ...a.holes]) outlines.push(r.map(([x, y]) => toPx(x, y)));
   }
   return { objects, threads, palette: q.palette, background: bg, dropped: 0, transparent, preview: { width: w, height: h, data: preview }, outlines };
+}
+
+function photoImage(img: RasterImage, o: AutoDigitizeOptions): AutoDigitizeResult {
+  const transparent = hasTransparency(img);
+  let palette: RGB[];
+  let bg: number | null = null;
+  if (o.photoMono) {
+    const hex = normalizeHex(o.lineColor ?? '#1A1A1A');
+    palette = [[parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]];
+  } else {
+    const q = quantize(img, Math.max(2, Math.min(12, o.colors)));
+    palette = q.palette;
+    bg = o.removeBackground && !transparent ? backgroundLabel(q) : null;
+  }
+  const res = photoStitch(img, { size: o.size, rowGap: o.rowGap, palette, mono: o.photoMono, background: bg, threads: o.threads });
+  return {
+    objects: res.objects,
+    threads: res.threads,
+    palette,
+    background: bg,
+    dropped: 0,
+    transparent,
+    preview: { width: img.width, height: img.height, data: res.preview },
+    outlines: [],
+  };
 }

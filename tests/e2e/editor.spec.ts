@@ -429,3 +429,17 @@ test('the tracer can turn an image into cross stitch', async ({ page }) => {
   await expect(page.getByLabel('Pattern', { exact: true })).toHaveValue('x-stitch');
   await expect(page.getByLabel('Cross stitch cell size in millimetres')).toHaveValue('3.0');
 });
+
+test('the tracer can make a photo stitch in color or mono', async ({ page }) => {
+  await openSample(page);
+  const png = makePng(80, 80, (x, y) => [Math.round((x / 79) * 255), 80, Math.round((y / 79) * 255)]);
+  await page.getByRole('button', { name: 'Design menu' }).click();
+  await chooseFile(page, () => page.getByRole('menuitem', { name: /Import artwork/ }).click(), { name: 'photo.png', mimeType: 'image/png', buffer: png });
+  const dialog = page.getByRole('dialog', { name: 'Trace image' });
+  await dialog.getByRole('group', { name: 'Trace mode' }).getByRole('button', { name: 'Photo' }).click();
+  await expect(dialog.getByText(/\d+ photo layers\./)).toBeVisible();
+  await dialog.getByRole('group', { name: 'Photo style' }).getByRole('button', { name: 'Mono' }).click();
+  await expect(dialog.getByText('1 photo layers.')).toBeVisible();
+  await dialog.getByRole('button', { name: /^Add 1 objects/ }).click();
+  await expect(page.locator('.seq-list .row', { hasText: 'Photo ·' })).toHaveCount(1);
+});
