@@ -73,6 +73,8 @@ const SHORTCUTS: [string, string][] = [
   ['Space + drag, or middle mouse', 'Pan the canvas'],
   ['⌘/Ctrl + scroll, + / −', 'Zoom'],
   ['0', 'Fit the hoop to the screen'],
+  ['G', 'Show or hide the grid (snap and smart snap are next to the zoom controls)'],
+  ['Hold ⌘/Ctrl while dragging', 'Move or resize without snapping'],
   ['1 · 2 · 3 · 4', 'Artwork · Objects · Stitches · Realistic view'],
   ['Escape', 'Cancel the current drawing / clear selection'],
 ];

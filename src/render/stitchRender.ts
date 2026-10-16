@@ -2,6 +2,19 @@ import { hexToRgb, rgbToHex } from '../model/project';
 import { CMD, type Project, type StitchPlan } from '../model/types';
 import { getFabric, type FabricPreset } from '../presets';
 
+type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
+type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
+/** A canvas that works on the main thread and in workers. */
+export function makeCanvas(width: number, height: number): AnyCanvas | null {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = width;
+  c.height = height;
+  return c;
+}
+
 /** World (0.1 mm) → screen: x' = x * scale + ox. */
 export interface ViewTransform {
   scale: number;
@@ -49,7 +62,7 @@ export function blockStarts(plan: StitchPlan): number[] {
   return starts;
 }
 
-function buildRange(plan: StitchPlan, start: number, end: number, hex: string, hidden?: Set<number>): BlockPaths {
+function buildRange(plan: StitchPlan, start: number, end: number, hex: string, hidden?: Set<number>, only?: Set<number>): BlockPaths {
   const buckets = Array.from({ length: BUCKETS }, () => new Path2D());
   const all = new Path2D();
   const jumps = new Path2D();
@@ -58,6 +71,7 @@ function buildRange(plan: StitchPlan, start: number, end: number, hex: string, h
   for (let i = Math.max(1, start); i < end; i++) {
     const c = cmds[i];
     if (hidden && obj[i] >= 0 && hidden.has(obj[i])) continue;
+    if (only && !only.has(obj[i])) continue;
     const x0 = xs[i - 1];
     const y0 = ys[i - 1];
     const x1 = xs[i];
@@ -80,18 +94,21 @@ function buildRange(plan: StitchPlan, start: number, end: number, hex: string, h
   return { hex, buckets, all, jumps, points, start, end };
 }
 
-/** `hidden` holds object indexes to leave out (e.g. text being edited in place). */
-export function buildPathCache(project: Project, plan: StitchPlan, hidden?: Set<number>): PathCache {
+/**
+ * `hidden` holds object indexes to leave out (e.g. text being edited in place);
+ * `only` keeps just those objects (e.g. the ones being dragged).
+ */
+export function buildPathCache(project: Project, plan: StitchPlan, hidden?: Set<number>, only?: Set<number>): PathCache {
   const colors = blockColors(project, plan);
   const starts = blockStarts(plan);
-  const blocks = starts.map((s, i) => buildRange(plan, s, i + 1 < starts.length ? starts[i + 1] : plan.cmds.length, colors[i] ?? '#888888', hidden));
+  const blocks = starts.map((s, i) => buildRange(plan, s, i + 1 < starts.length ? starts[i + 1] : plan.cmds.length, colors[i] ?? '#888888', hidden, only));
   return { plan, blocks };
 }
 
 export type StitchStyle = 'realistic' | 'stitches';
 
 /** Draw cached blocks in sewing order. Context must already have the world transform applied. */
-export function drawBlocks(ctx: CanvasRenderingContext2D, blocks: BlockPaths[], style: StitchStyle, pxPerUnit: number) {
+export function drawBlocks(ctx: Ctx2D, blocks: BlockPaths[], style: StitchStyle, pxPerUnit: number) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   if (style === 'stitches') {
@@ -153,18 +170,16 @@ export function partialBlocks(project: Project, cache: PathCache, n: number): Bl
 
 /* ---------- Fabric textures ---------- */
 
-const patternCache = new Map<string, HTMLCanvasElement>();
+const patternCache = new Map<string, AnyCanvas>();
 
 /** A small tile in canvas pixels representing ~4 mm of fabric. */
-export function fabricTile(f: FabricPreset): HTMLCanvasElement | null {
-  if (typeof document === 'undefined') return null;
+export function fabricTile(f: FabricPreset): AnyCanvas | null {
   const hit = patternCache.get(f.id);
   if (hit) return hit;
-  const c = document.createElement('canvas');
   const s = 40; // 40 px tile = 4 mm at 1 px per 0.1 mm
-  c.width = s;
-  c.height = s;
-  const g = c.getContext('2d');
+  const c = makeCanvas(s, s);
+  if (!c) return null;
+  const g = c.getContext('2d') as Ctx2D | null;
   if (!g) return null;
   g.fillStyle = f.color;
   g.fillRect(0, 0, s, s);
@@ -217,7 +232,7 @@ export function fabricTile(f: FabricPreset): HTMLCanvasElement | null {
 }
 
 /** Fill a path with the fabric texture in world space (scale = px per 0.1 mm). */
-export function fillFabric(ctx: CanvasRenderingContext2D, fabricId: string, shape: Path2D | null, scale: number) {
+export function fillFabric(ctx: Ctx2D, fabricId: string, shape: Path2D | null, scale: number) {
   const f = getFabric(fabricId);
   const tile = fabricTile(f);
   ctx.fillStyle = f.color;
@@ -236,14 +251,11 @@ export function fillFabric(ctx: CanvasRenderingContext2D, fabricId: string, shap
 
 /* ---------- Thumbnails ---------- */
 
-/** Realistic thumbnail of the design on its fabric (data URL, 4:3). */
-export function renderThumbnail(project: Project, plan: StitchPlan, width = 400, height = 300): string | undefined {
-  if (typeof document === 'undefined') return undefined;
-  const c = document.createElement('canvas');
-  c.width = width;
-  c.height = height;
-  const ctx = c.getContext('2d');
-  if (!ctx) return undefined;
+/** Draw a realistic thumbnail of the design on its fabric (4:3) into a new canvas. */
+export function drawThumbnail(project: Project, plan: StitchPlan, width = 400, height = 300): AnyCanvas | null {
+  const c = makeCanvas(width, height);
+  const ctx = c?.getContext('2d') as Ctx2D | null | undefined;
+  if (!c || !ctx) return null;
   const b = plan.bounds ?? { minX: -300, minY: -300, maxX: 300, maxY: 300 };
   const w = Math.max(b.maxX - b.minX, 100);
   const h = Math.max(b.maxY - b.minY, 100);
@@ -253,7 +265,23 @@ export function renderThumbnail(project: Project, plan: StitchPlan, width = 400,
   ctx.setTransform(scale, 0, 0, scale, width / 2 - cx * scale, height / 2 - cy * scale);
   fillFabric(ctx, project.fabricPreset, null, scale);
   drawBlocks(ctx, buildPathCache(project, plan).blocks, scale < 0.6 && project.source === 'stitch-file' ? 'stitches' : 'realistic', scale);
+  return c;
+}
+
+/** Thumbnail as a PNG data URL; works in workers (OffscreenCanvas) and on the main thread. */
+export async function renderThumbnail(project: Project, plan: StitchPlan, width = 400, height = 300): Promise<string | undefined> {
   try {
+    const c = drawThumbnail(project, plan, width, height);
+    if (!c) return undefined;
+    if ('convertToBlob' in c) {
+      const blob = await c.convertToBlob({ type: 'image/png' });
+      return await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(blob);
+      });
+    }
     return c.toDataURL('image/png');
   } catch {
     return undefined;

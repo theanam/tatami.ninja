@@ -54,6 +54,11 @@
 }
 .zoom-ctl { position: absolute; right: 14px; bottom: 12px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: var(--sb-r-md); background: var(--sb-bg-panel); border: 1px solid var(--sb-border-subtle); }
 .zoom-ctl.top { bottom: auto; top: 12px; }
+.grid-ctl { position: absolute; right: 186px; bottom: 12px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: var(--sb-r-md); background: var(--sb-bg-panel); border: 1px solid var(--sb-border-subtle); }
+.grid-ctl.top { bottom: auto; top: 12px; }
+.grid-ctl .tb.toggle-on { background: var(--sb-bg-selected-tool); color: var(--sb-text-on-selected); }
+.grid-size { height: 26px; border: 0; background: transparent; color: var(--sb-text-secondary); font-family: var(--sb-font-mono); font-size: var(--sb-fs-sm); padding: 0 4px; cursor: pointer; }
+.grid-size:hover { background: var(--sb-bg-hover); border-radius: var(--sb-r-sm); }
 .zoom-val { font-size: var(--sb-fs-sm); color: var(--sb-text-secondary); padding: 0 4px; min-width: 48px; text-align: center; }
 
 .dropzone {

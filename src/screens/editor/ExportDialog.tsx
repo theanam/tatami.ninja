@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { Dialog, toast } from '../../components/ui';
 import { colorBlockStats, colorSheetPdf, downloadBytes, downloadProjectJson, encodeFormat, fileBaseName } from '../../export/export';
@@ -6,7 +6,7 @@ import { FORMATS } from '../../formats';
 import type { FileFormat } from '../../model/types';
 import { fmtInt, fmtLen, sewMinutes } from '../../model/units';
 import { getMachine, hoopLabel, THREAD_CHARTS } from '../../presets';
-import { renderThumbnail } from '../../render/stitchRender';
+import { backgroundEngine } from '../../engine/client';
 import { useEditor } from '../../store/editor';
 
 const ORDER: FileFormat[] = ['PES', 'DST', 'JEF', 'EXP', 'VP3', 'XXX', 'HUS'];
@@ -20,7 +20,16 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const [name, setName] = useState(fileBaseName(project));
   const [sheet, setSheet] = useState(true);
   const [json, setJson] = useState(false);
-  const thumb = useMemo(() => renderThumbnail(project, plan, 480, 360), [project, plan]);
+  const [thumb, setThumb] = useState<string | undefined>();
+  useEffect(() => {
+    let alive = true;
+    void backgroundEngine()
+      .run(project, { thumbnail: { width: 480, height: 360 } })
+      .then((r) => alive && setThumb(r.thumbnail));
+    return () => {
+      alive = false;
+    };
+  }, [project]);
   const info = FORMATS[format];
   const b = plan.bounds;
   const w = b ? b.maxX - b.minX : 0;

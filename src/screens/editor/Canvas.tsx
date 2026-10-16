@@ -6,7 +6,7 @@ import { defaultTextSpec, layoutText, loadSpecFont, makeTextObject } from '../..
 import { ensureThread } from '../../model/project';
 import { deleteVertex, insertVertexAfter, listVertices, moveVertex, nearestSegment } from '../../model/nodes';
 import { objectsBounds, satinWidth, scaleObject, translateObject } from '../../model/transform';
-import type { Pt, StitchObject } from '../../model/types';
+import type { Bounds, Pt, StitchObject } from '../../model/types';
 import { fmtLen, fmtLenCompact } from '../../model/units';
 import { getFabric, hoopLabel } from '../../presets';
 import { buildPathCache, drawBlocks, fillFabric, partialBlocks } from '../../render/stitchRender';
@@ -31,13 +31,15 @@ import {
 import { constrainSquare, objectFromPath, objectFromSatinClicks, objectFromShape, snap45, type PathTool, type ShapeKind } from './drawTools';
 import { isTypingTarget } from './hooks';
 import { InlineTextEditor, TextToolbar } from './TextTools';
+import { gridSizes, snapLines, snapMove, snapPoint, type Guides, type SnapLines, type SnapOptions } from './snap';
+import { ObjectArt } from './ObjectArt';
 
 type Drag =
   | { kind: 'pan'; start: P; pan: { x: number; y: number } }
-  | { kind: 'move'; start: P; orig: StitchObject[] }
+  | { kind: 'move'; start: P; orig: StitchObject[]; b0: Bounds | null; lines: SnapLines | null }
   | { kind: 'marquee'; start: P; end: P; additive: boolean }
   | { kind: 'angle'; id: string; center: P }
-  | { kind: 'scale'; anchor: P; startDist: number; orig: StitchObject[] }
+  | { kind: 'scale'; anchor: P; startDist: number; orig: StitchObject[]; b0: Bounds | null; lines: SnapLines | null }
   | { kind: 'node'; id: string; key: string }
   | { kind: 'shape'; start: P; end: P }
   | { kind: 'measure'; start: P; end: P }
@@ -49,6 +51,44 @@ interface Props {
   onImportClick(): void;
   onOpenStitchFile(): void;
   simCmd: number;
+}
+
+/** 2D affine [a, b, c, d, e, f]: x' = a·x + c·y + e, y' = b·x + d·y + f. */
+type Mat = [number, number, number, number, number, number];
+
+/**
+ * A drag in progress: objects are shown transformed but the document is untouched until the
+ * pointer is released ('drag'). After release, stitch views keep the transform until the
+ * worker returns stitches for the new positions ('settle'), so nothing jumps back.
+ */
+interface DragXf {
+  ids: string[];
+  m: Mat;
+  phase: 'drag' | 'settle';
+  backdrop?: boolean;
+}
+
+const applyMat = (m: Mat, p: P): P => [m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5]];
+
+const BLANK_KEY = 'tatami.startBlank';
+
+/** Designs where the user chose to start blank (the empty-state card stays hidden). */
+function blankChosen(id: string | undefined): boolean {
+  try {
+    return !!id && (JSON.parse(localStorage.getItem(BLANK_KEY) ?? '[]') as string[]).includes(id);
+  } catch {
+    return false;
+  }
+}
+
+function rememberBlank(id: string | undefined) {
+  if (!id) return;
+  try {
+    const ids = JSON.parse(localStorage.getItem(BLANK_KEY) ?? '[]') as string[];
+    if (!ids.includes(id)) localStorage.setItem(BLANK_KEY, JSON.stringify([...ids, id].slice(-200)));
+  } catch {
+    /* not remembered across reloads */
+  }
 }
 
 function cssVar(name: string): string {
@@ -68,6 +108,42 @@ function roundRect(x: number, y: number, w: number, h: number, r: number): Path2
   return p;
 }
 
+/** Grid lines inside the hoop; every 10 mm (or every 5th line) is stronger. */
+function drawGrid(
+  ctx: CanvasRenderingContext2D,
+  step: number,
+  hw: number,
+  hh: number,
+  scale: number,
+  minor: string,
+  major: string,
+) {
+  const px = 1 / scale;
+  const majorEvery = Number.isInteger(100 / step) ? Math.round(100 / step) : 5;
+  const drawMinor = step * scale >= 5;
+  ctx.lineWidth = px;
+  for (const pass of drawMinor ? ['minor', 'major'] : ['major']) {
+    ctx.strokeStyle = pass === 'major' ? major : minor;
+    ctx.beginPath();
+    for (let i = 0; i * step <= Math.max(hw, hh) + step; i++) {
+      const isMajor = i % majorEvery === 0;
+      if ((pass === 'major') !== isMajor) continue;
+      const t = i * step;
+      for (const x of i === 0 ? [0] : [t, -t]) {
+        if (Math.abs(x) > hw) continue;
+        ctx.moveTo(x, -hh);
+        ctx.lineTo(x, hh);
+      }
+      for (const y of i === 0 ? [0] : [t, -t]) {
+        if (Math.abs(y) > hh) continue;
+        ctx.moveTo(-hw, y);
+        ctx.lineTo(hw, y);
+      }
+    }
+    ctx.stroke();
+  }
+}
+
 export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile, simCmd }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,6 +160,15 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const warnings = useEditor((s) => s.warnings);
   const fitRequest = useEditor((s) => s.fitRequest);
   const dirtyIds = useEditor((s) => s.dirtyIds);
+  const grid = useEditor((s) => s.grid);
+  const [guides, setGuides] = useState<Guides>({ x: null, y: null });
+  const planFor = useEditor((s) => s.planFor);
+  const [xf, setXf] = useState<DragXf | null>(null);
+  const xfRef = useRef<DragXf | null>(null);
+  const setDragXf = (x: DragXf | null) => {
+    xfRef.current = x;
+    setXf(x);
+  };
 
   const [drag, setDrag] = useState<Drag | null>(null);
   const [draft, setDraft] = useState<Pt[]>([]);
@@ -92,6 +177,11 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
   const [measure, setMeasure] = useState<{ start: P; end: P } | null>(null);
   const [dropping, setDropping] = useState(false);
+  const [startBlank, setStartBlank] = useState(() => blankChosen(project.id));
+  const chooseBlank = () => {
+    setStartBlank(true);
+    rememberBlank(project.id);
+  };
 
   // Size tracking.
   useLayoutEffect(() => {
@@ -124,12 +214,39 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const editingTextId = useEditor((s) => s.editingTextId);
   const editingIndex = editingTextId ? project.objects.findIndex((o) => o.id === editingTextId) : -1;
   // Text being edited in place is drawn by the live editor, not as stitches.
-  const cache = useMemo(
-    () => (plan ? buildPathCache(project, plan, editingIndex >= 0 ? new Set([editingIndex]) : undefined) : null),
-    [plan, project.threads, editingIndex], // eslint-disable-line react-hooks/exhaustive-deps
+  // Stitch paths are only built for the view on screen: Artwork and Objects never pay for them,
+  // and Stitches/Realistic build them when you switch there (stitches themselves come from the worker).
+  const needStitches = view === 'stitches' || view === 'realistic' || sim.active;
+  // Objects being dragged are drawn separately (transformed) on top of a cached scene.
+  const dragKey = xf && !xf.backdrop ? xf.ids.join(',') : '';
+  const dragIdx = useMemo(() => {
+    if (!dragKey || !plan) return null;
+    const ids = new Set(dragKey.split(','));
+    const idx = new Set<number>();
+    plan.objectStats.forEach((st, i) => ids.has(st.id) && idx.add(i));
+    return idx;
+  }, [dragKey, plan]);
+  const cache = useMemo(() => {
+    if (!plan || !needStitches) return null;
+    const hidden = new Set<number>(dragIdx ?? []);
+    if (editingIndex >= 0) hidden.add(editingIndex);
+    return buildPathCache(project, plan, hidden.size ? hidden : undefined);
+  }, [plan, project.threads, editingIndex, needStitches, dragIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dragCache = useMemo(
+    () => (plan && needStitches && dragIdx ? buildPathCache(project, plan, undefined, dragIdx) : null),
+    [plan, project.threads, needStitches, dragIdx], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // After a drop, keep showing the moved stitches until the worker has the new ones.
+  useEffect(() => {
+    if (xf?.phase === 'settle' && (!needStitches || planFor === project)) setDragXf(null);
+  }, [xf, planFor, project, needStitches]);
+
   // ---------- Canvas2D layer ----------
+  // The scene (hoop, fabric, grid, stitches not being dragged) is drawn once into an offscreen
+  // canvas; each drag frame only copies it and redraws the dragged stitches transformed.
+  const sceneRef = useRef<HTMLCanvasElement | null>(null);
+  const [sceneVersion, setSceneVersion] = useState(0);
   useEffect(() => {
     const c = canvasRef.current;
     if (!c || !size.w) return;
@@ -138,7 +255,13 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       c.width = Math.round(size.w * dpr);
       c.height = Math.round(size.h * dpr);
     }
-    const ctx = c.getContext('2d');
+    if (!sceneRef.current) sceneRef.current = document.createElement('canvas');
+    const scene = sceneRef.current;
+    if (scene.width !== c.width || scene.height !== c.height) {
+      scene.width = c.width;
+      scene.height = c.height;
+    }
+    const ctx = scene.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.width, c.height);
@@ -157,6 +280,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       fillFabric(ctx, project.fabricPreset, inner, v.s);
       ctx.save();
       ctx.clip(inner);
+      if (grid.show) drawGrid(ctx, grid.size, hw, hh, v.s, 'rgba(0,0,0,.07)', 'rgba(0,0,0,.14)');
       ctx.strokeStyle = 'rgba(0,0,0,.16)';
       ctx.lineWidth = 12;
       ctx.stroke(inner);
@@ -179,22 +303,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       ctx.fill(inner);
       ctx.save();
       ctx.clip(inner);
-      ctx.strokeStyle = cssVar('--sb-hoop-grid');
-      ctx.lineWidth = px;
-      ctx.beginPath();
-      for (let x = 0; x <= hw; x += 100) {
-        ctx.moveTo(x, -hh);
-        ctx.lineTo(x, hh);
-        ctx.moveTo(-x, -hh);
-        ctx.lineTo(-x, hh);
-      }
-      for (let y = 0; y <= hh; y += 100) {
-        ctx.moveTo(-hw, y);
-        ctx.lineTo(hw, y);
-        ctx.moveTo(-hw, -y);
-        ctx.lineTo(hw, -y);
-      }
-      ctx.stroke();
+      if (grid.show) drawGrid(ctx, grid.size, hw, hh, v.s, 'rgba(255,255,255,.035)', cssVar('--sb-hoop-grid'));
       ctx.setLineDash([6 * px, 4 * px]);
       ctx.strokeStyle = cssVar('--sb-hoop-stroke');
       ctx.beginPath();
@@ -213,7 +322,25 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       const blocks = sim.active ? partialBlocks(project, cache, simCmd) : cache.blocks;
       drawBlocks(ctx, blocks, realistic ? 'realistic' : 'stitches', v.s);
     }
-  }, [size, v.s, v.cx, v.cy, project.hoop, project.fabricPreset, realistic, showStitches, cache, sim.active, simCmd, project]);
+    setSceneVersion((n) => n + 1);
+  }, [size, v.s, v.cx, v.cy, project.hoop, project.fabricPreset, realistic, showStitches, cache, sim.active, simCmd, project, grid.show, grid.size]);
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    const scene = sceneRef.current;
+    const ctx = c?.getContext('2d');
+    if (!c || !scene || !ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.drawImage(scene, 0, 0);
+    if (showStitches && dragCache && xf && !xf.backdrop) {
+      const dpr = window.devicePixelRatio || 1;
+      const m = xf.m;
+      ctx.setTransform(dpr * v.s, 0, 0, dpr * v.s, dpr * v.cx, dpr * v.cy);
+      ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+      drawBlocks(ctx, dragCache.blocks, realistic ? 'realistic' : 'stitches', v.s * Math.abs(m[0]));
+    }
+  }, [sceneVersion, xf, dragCache, showStitches, realistic, v.s, v.cx, v.cy]);
 
   // ---------- Interaction helpers ----------
   const screenPoint = (e: { clientX: number; clientY: number }): P => {
@@ -223,6 +350,18 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const worldPoint = (e: { clientX: number; clientY: number }): P => toWorld(v, screenPoint(e));
   const toPt = (p: P): Pt => [Math.round(p[0]), Math.round(p[1])];
   const tol = 6 / v.s;
+
+  /** Snap settings for a gesture; ⌘/Ctrl held skips snapping. */
+  const snapOpts = (exclude: string[], bypass = false): SnapOptions => ({
+    grid: !bypass && grid.snap ? grid.size : null,
+    lines: !bypass && grid.smart ? snapLines(project, new Set(exclude)) : null,
+    tol: 6 / v.s,
+  });
+  const snapAt = (p: P, exclude: string[], bypass: boolean): P => {
+    const r = snapPoint(p, snapOpts(exclude, bypass));
+    setGuides(r.guides);
+    return r.p;
+  };
 
   const editable = !readOnly && !sim.active;
   const sel = useMemo(() => selectedObjects({ project, selection }), [project, selection]);
@@ -265,6 +404,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
+      if (e.key === 'Escape' && !draft.length && useEditor.getState().project?.objects.length === 0 && !startBlank) chooseBlank();
       if (e.key === ' ' && !spaceDown) {
         setSpaceDown(true);
         if (!useEditor.getState().sim.active) e.preventDefault();
@@ -342,7 +482,14 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         // The handle's own corner; scaling pivots on the opposite one.
         const [cx, cy] = h.slice(7).split(',').map(Number);
         const anchor: P = [cx ? b.minX : b.maxX, cy ? b.minY : b.maxY];
-        setDrag({ kind: 'scale', anchor, startDist: Math.hypot(wp[0] - anchor[0], wp[1] - anchor[1]) || 1, orig: sel });
+        setDrag({
+          kind: 'scale',
+          anchor,
+          startDist: Math.hypot(wp[0] - anchor[0], wp[1] - anchor[1]) || 1,
+          orig: sel,
+          b0: objectsBounds(sel),
+          lines: grid.smart ? snapLines(project, new Set(sel.map((o) => o.id))) : null,
+        });
         return;
       }
       if (h.startsWith('node:') && single) {
@@ -371,7 +518,16 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
           // Snapshot the objects being dragged; every move is computed from this, so fast
           // pointer events can never apply the same offset twice.
           const orig = project.objects.filter((o) => ids.includes(o.id) && !o.locked);
-          if (editable && !hit.locked && orig.length) setDrag({ kind: 'move', start: wp, orig });
+          if (editable && !hit.locked && orig.length) {
+            // Snap targets are computed once per drag, not on every pointer move.
+            setDrag({
+              kind: 'move',
+              start: wp,
+              orig,
+              b0: objectsBounds(orig),
+              lines: grid.smart ? snapLines(project, new Set(orig.map((o) => o.id))) : null,
+            });
+          }
         } else if (editable && project.backdrop && project.backdrop.visible && !project.backdrop.locked && inBackdrop(wp)) {
           setDrag({ kind: 'backdrop', start: wp, origX: project.backdrop.x, origY: project.backdrop.y });
         } else {
@@ -384,7 +540,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       case 'fill':
       case 'applique': {
         if (!editable) return;
-        let p = toPt(wp);
+        let p = toPt(snapAt(wp, [], e.metaKey || e.ctrlKey));
         if (e.shiftKey && draft.length) p = snap45(draft[draft.length - 1], p);
         if (draft.length >= 3 && Math.hypot(p[0] - draft[0][0], p[1] - draft[0][1]) * v.s < 8) {
           finishPath(true);
@@ -403,18 +559,20 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
           finishPath(false);
           return;
         }
-        setDraft([...draft, toPt(wp)]);
+        setDraft([...draft, toPt(snapAt(wp, [], e.metaKey || e.ctrlKey))]);
         return;
       }
-      case 'shapes':
-        if (editable) setDrag({ kind: 'shape', start: wp, end: wp });
+      case 'shapes': {
+        const sp0 = snapAt(wp, [], e.metaKey || e.ctrlKey);
+        if (editable) setDrag({ kind: 'shape', start: sp0, end: sp0 });
         return;
+      }
       case 'measure':
         setDrag({ kind: 'measure', start: wp, end: wp });
         setMeasure({ start: wp, end: wp });
         return;
       case 'lettering':
-        if (editable) void addText(wp);
+        if (editable) void addText(snapAt(wp, [], e.metaKey || e.ctrlKey));
         return;
       default:
         return;
@@ -429,7 +587,8 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const onPointerMove = (e: React.PointerEvent) => {
     const sp = screenPoint(e);
     const wp = toWorld(v, sp);
-    setHover(wp);
+    // Only drawing previews need the hover point; skip re-renders otherwise.
+    if (draft.length) setHover(wp);
     if (!drag) return;
     const s = useEditor.getState();
     switch (drag.kind) {
@@ -437,13 +596,21 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         s.setPan({ x: drag.pan.x + sp[0] - drag.start[0], y: drag.pan.y + sp[1] - drag.start[1] });
         return;
       case 'move': {
-        const dx = Math.round(wp[0] - drag.start[0]);
-        const dy = Math.round(wp[1] - drag.start[1]);
-        s.replaceObjects(drag.orig.map((o) => translateObject(o, dx, dy)), 'drag-move');
+        // Visual only: the document is updated once, on release.
+        let dx = wp[0] - drag.start[0];
+        let dy = wp[1] - drag.start[1];
+        const bypass = e.metaKey || e.ctrlKey;
+        if (drag.b0) {
+          const r = snapMove(drag.b0, dx, dy, { grid: !bypass && grid.snap ? grid.size : null, lines: bypass ? null : drag.lines, tol: 6 / v.s });
+          dx = r.dx;
+          dy = r.dy;
+          setGuides(r.guides);
+        }
+        setDragXf({ ids: drag.orig.map((o) => o.id), m: [1, 0, 0, 1, Math.round(dx), Math.round(dy)], phase: 'drag' });
         return;
       }
       case 'backdrop': {
-        s.updateBackdrop({ x: Math.round(drag.origX + wp[0] - drag.start[0]), y: Math.round(drag.origY + wp[1] - drag.start[1]) }, 'backdrop-move');
+        setDragXf({ ids: [], backdrop: true, m: [1, 0, 0, 1, Math.round(wp[0] - drag.start[0]), Math.round(wp[1] - drag.start[1])], phase: 'drag' });
         return;
       }
       case 'marquee':
@@ -454,22 +621,29 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         return;
       case 'scale': {
         // Uniform scale about the opposite corner, always from the original objects.
-        const d = Math.hypot(wp[0] - drag.anchor[0], wp[1] - drag.anchor[1]);
-        const ob = objectsBounds(drag.orig);
+        const bypass = e.metaKey || e.ctrlKey;
+        const snapped = snapPoint(wp, { grid: !bypass && grid.snap ? grid.size : null, lines: bypass ? null : drag.lines, tol: 6 / v.s });
+        setGuides(snapped.guides);
+        const corner = snapped.p;
+        const d = Math.hypot(corner[0] - drag.anchor[0], corner[1] - drag.anchor[1]);
+        const ob = drag.b0;
         const maxF = ob ? MAX_OBJECT_SIZE / Math.max(1, ob.maxX - ob.minX, ob.maxY - ob.minY) : 10;
         const f = Math.min(maxF, Math.max(0.05, d / drag.startDist));
         const [ax, ay] = drag.anchor;
-        s.replaceObjects(drag.orig.map((o) => scaleObject(o, f, f, ax, ay)), 'drag-scale');
+        setDragXf({ ids: drag.orig.map((o) => o.id), m: [f, 0, 0, f, ax * (1 - f), ay * (1 - f)], phase: 'drag' });
         return;
       }
       case 'node': {
         const o = s.project?.objects.find((x) => x.id === drag.id);
         if (!o) return;
-        s.replaceObject({ ...o, geometry: moveVertex(o.geometry, drag.key, toPt(wp)), text: undefined }, `node-${drag.id}`);
+        s.replaceObject({ ...o, geometry: moveVertex(o.geometry, drag.key, toPt(snapAt(wp, [o.id], e.metaKey || e.ctrlKey))), text: undefined }, `node-${drag.id}`);
         return;
       }
       case 'shape':
-        setDrag({ ...drag, end: e.shiftKey ? (constrainSquare(toPt(drag.start), toPt(wp)) as P) : wp });
+        {
+          const end = snapAt(wp, [], e.metaKey || e.ctrlKey);
+          setDrag({ ...drag, end: e.shiftKey ? (constrainSquare(toPt(drag.start), toPt(end)) as P) : end });
+        }
         return;
       case 'measure':
         setDrag({ ...drag, end: wp });
@@ -479,8 +653,30 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   };
 
   const onPointerUp = () => {
+    setGuides({ x: null, y: null });
     if (!drag) return;
     const s = useEditor.getState();
+    const x = xfRef.current;
+    if (x && (drag.kind === 'move' || drag.kind === 'scale' || drag.kind === 'backdrop')) {
+      // Commit the whole drag as one change (one undo step).
+      const m = x.m;
+      if (drag.kind === 'backdrop') {
+        const b = s.project?.backdrop;
+        if (b && (m[4] || m[5])) s.updateBackdrop({ x: b.x + m[4], y: b.y + m[5] });
+        setDragXf(null);
+      } else if (drag.kind === 'move' && (m[4] || m[5])) {
+        s.replaceObjects(drag.orig.map((o) => translateObject(o, m[4], m[5])));
+        setDragXf(needStitches ? { ...x, phase: 'settle' } : null);
+      } else if (drag.kind === 'scale' && m[0] !== 1) {
+        const [ax, ay] = drag.anchor;
+        s.replaceObjects(drag.orig.map((o) => scaleObject(o, m[0], m[0], ax, ay)));
+        setDragXf(needStitches ? { ...x, phase: 'settle' } : null);
+      } else {
+        setDragXf(null);
+      }
+      setDrag(null);
+      return;
+    }
     if (drag.kind === 'marquee') {
       const r = normRect(drag.start, drag.end);
       if ((r.maxX - r.minX) * v.s < 3 && (r.maxY - r.minY) * v.s < 3) {
@@ -555,44 +751,24 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const threadHex = (id: string) => project.threads.find((t) => t.id === id)?.hex ?? '#888';
   const worldTransform = `matrix(${v.s} 0 0 ${v.s} ${v.cx} ${v.cy})`;
 
-  const showObjects = view === 'objects' && !sim.active;
-  const showOutlines = view === 'artwork' && !sim.active;
+  // Artwork and Objects draw every object with a live picture of its stitch type.
+  const showArt = (view === 'objects' || view === 'artwork') && !sim.active;
   const showBackdrop = !!project.backdrop?.visible && (view === 'artwork' || view === 'objects') && !sim.active;
 
   const objectsLayer: ReactNode[] = [];
-  if (showObjects || showOutlines) {
+  if (showArt) {
     for (const o of project.objects) {
       if (!o.visible || o.id === editingTextId) continue;
-      const d = geometryPath(o.geometry);
-      const color = threadHex(o.thread);
-      if (showOutlines) {
-        objectsLayer.push(<path key={o.id} d={d} fill="none" stroke={color} strokeWidth={1.2} vectorEffect="non-scaling-stroke" fillRule="evenodd" />);
-        continue;
-      }
-      if (o.type === 'stitches') {
-        objectsLayer.push(<path key={o.id} d={d} fill="none" stroke={color} strokeWidth={1} vectorEffect="non-scaling-stroke" />);
-      } else if (o.type === 'run') {
-        objectsLayer.push(
-          <path key={o.id} d={d} fill="none" stroke={color} strokeWidth={1.6} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" fillRule="evenodd" />,
-        );
-      } else if (o.geometry.kind === 'polyline') {
-        // Satin along a path: draw as a thick line of its width.
-        objectsLayer.push(<path key={o.id} d={d} fill="none" stroke={color} strokeWidth={o.params.width ?? 30} strokeLinejoin="round" opacity={0.95} />);
-      } else {
-        const angle = o.type === 'tatami' ? o.params.angleDeg ?? 45 : o.type === 'contour' ? 0 : 90;
-        objectsLayer.push(
-          <g key={o.id}>
-            <path d={d} fill={color} fillRule="evenodd" />
-            {o.type !== 'satin' && o.type !== 'applique' && (
-              <path d={d} fill={`url(#hatch-${o.id})`} fillRule="evenodd" />
-            )}
-            <pattern id={`hatch-${o.id}`} patternUnits="userSpaceOnUse" width={24} height={24} patternTransform={`rotate(${-angle})`}>
-              <path d="M0 12H24" stroke="rgba(255,255,255,.16)" strokeWidth={4} />
-            </pattern>
-            {o.type === 'applique' && <path d={d} fill="none" stroke="#fff" strokeOpacity={0.5} strokeDasharray="4 3" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
-          </g>,
-        );
-      }
+      const art = <ObjectArt key={o.id} o={o} color={threadHex(o.thread)} fabricId={project.fabricPreset} scale={v.s} />;
+      objectsLayer.push(
+        xf?.phase === 'drag' && !xf.backdrop && xf.ids.includes(o.id) ? (
+          <g key={o.id} transform={`matrix(${xf.m.join(' ')})`}>
+            {art}
+          </g>
+        ) : (
+          art
+        ),
+      );
     }
   }
 
@@ -618,7 +794,14 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   // Selection overlays in screen space.
   const overlays: ReactNode[] = [];
   if (!sim.active && sel.length) {
-    const b = objectsBounds(sel);
+    let b = objectsBounds(sel);
+    const dragging = xf?.phase === 'drag' && !xf.backdrop;
+    if (b && dragging) {
+      // Live box while dragging: transform the original bounds.
+      const p0 = applyMat(xf.m, [b.minX, b.minY]);
+      const p1 = applyMat(xf.m, [b.maxX, b.maxY]);
+      b = { minX: Math.min(p0[0], p1[0]), minY: Math.min(p0[1], p1[1]), maxX: Math.max(p0[0], p1[0]), maxY: Math.max(p0[1], p1[1]) };
+    }
     if (b) {
       const [x0, y0] = toScreen(v, [b.minX, b.minY]);
       const [x1, y1] = toScreen(v, [b.maxX, b.maxY]);
@@ -657,7 +840,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         }
       }
     }
-    if (single && (single.type === 'tatami' || single.type === 'contour') && tool === 'select') {
+    if (!dragging && single && (single.type === 'tatami' || single.type === 'contour') && tool === 'select') {
       const c = objectCenter(single);
       const ob = geometryBounds(single.geometry);
       if (c && ob) {
@@ -686,7 +869,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         }
       }
     }
-    if (single && single.geometry.kind === 'satin' && (view === 'objects' || view === 'artwork')) {
+    if (!dragging && single && single.geometry.kind === 'satin' && (view === 'objects' || view === 'artwork')) {
       const g = single.geometry;
       const col = columnFromRails(g.railA, g.railB);
       const step = Math.max(1, Math.round(30 / Math.max(0.05, v.s) / 2)); // ~ every 30 px
@@ -718,7 +901,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         </g>,
       );
     }
-    if (single) {
+    if (single && !dragging) {
       for (const which of ['entry', 'exit'] as const) {
         const pt = single[which];
         if (!pt) continue;
@@ -737,7 +920,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         );
       }
     }
-    if (single && tool === 'node' && editable && !single.locked) {
+    if (!dragging && single && tool === 'node' && editable && !single.locked) {
       for (const vx of listVertices(single.geometry)) {
         const [x, y] = toScreen(v, vx.pt);
         overlays.push(
@@ -813,7 +996,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const hh = project.hoop.height / 2;
   const innerTL = toScreen(v, [-hw, -hh]);
   const innerBR = toScreen(v, [hw, hh]);
-  const empty = project.objects.length === 0 && project.source !== 'stitch-file';
+  const empty = project.objects.length === 0 && project.source !== 'stitch-file' && !startBlank;
   const picking = useEditor((st) => st.pickPoint);
   const cursor =
     picking ? 'crosshair' : drag?.kind === 'pan' || spaceDown ? 'grabbing' : tool === 'select' || tool === 'node' ? 'default' : tool === 'lettering' ? 'text' : 'crosshair';
@@ -849,6 +1032,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         <g transform={worldTransform}>
           {showBackdrop && project.backdrop && (
             <image
+              transform={xf?.phase === 'drag' && xf.backdrop ? `translate(${xf.m[4]} ${xf.m[5]})` : undefined}
               href={project.backdrop.dataUrl}
               x={project.backdrop.x}
               y={project.backdrop.y}
@@ -888,6 +1072,12 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         )}
         {overlays}
         {previews}
+        {(guides.x !== null || guides.y !== null) && (
+          <g className="snap-guides" pointerEvents="none">
+            {guides.x !== null && <line x1={toScreen(v, [guides.x, 0])[0]} x2={toScreen(v, [guides.x, 0])[0]} y1={0} y2={size.h} stroke="var(--sb-guide)" strokeWidth={1} />}
+            {guides.y !== null && <line y1={toScreen(v, [0, guides.y])[1]} y2={toScreen(v, [0, guides.y])[1]} x1={0} x2={size.w} stroke="var(--sb-guide)" strokeWidth={1} />}
+          </g>
+        )}
         {needle && (
           <g pointerEvents="none" stroke="#fff" strokeWidth={1.4}>
             <circle cx={needle[0]} cy={needle[1]} r={9} fill="none" />
@@ -935,7 +1125,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
           </div>
         )}
 
-      {single?.text && !sim.active && !readOnly && !single.locked && (
+      {single?.text && !sim.active && !readOnly && !single.locked && xf?.phase !== 'drag' && (
         <TextToolbar
           o={single}
           v={v}
@@ -958,7 +1148,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         );
       })()}
 
-      {updating && !sim.active && (
+      {updating && needStitches && !sim.active && (
         <div className="updating-pill" role="status">
           <Spinner size={12} />
           Updating stitches
@@ -985,12 +1175,27 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
           <button className="btn block dz-btn" onClick={onOpenStitchFile}>
             Open a DST or PES file
           </button>
+          <button className="btn block dz-btn" onClick={chooseBlank}>
+            Start with a blank canvas
+          </button>
           <p className="dz-hint">
             Or pick a drawing tool on the left: <b>P</b> pen, <b>S</b> satin, <b>F</b> fill
           </p>
         </div>
       )}
 
+      <div className={`grid-ctl${sim.active ? ' top' : ''}`} role="group" aria-label="Grid and snapping">
+        <IconButton icon="grid" label="Show grid" shortcut="G" size="xs" tipSide="top" aria-pressed={grid.show} className={grid.show ? 'toggle-on' : ''} onClick={() => useEditor.getState().setGrid({ show: !grid.show })} />
+        <select className="grid-size" aria-label="Grid size" value={grid.size} onChange={(e) => useEditor.getState().setGrid({ size: Number(e.target.value) })}>
+          {gridSizes(project.units).map((g) => (
+            <option key={g.value} value={g.value}>
+              {g.label}
+            </option>
+          ))}
+        </select>
+        <IconButton icon="magnet" label="Snap to grid" size="xs" tipSide="top" aria-pressed={grid.snap} className={grid.snap ? 'toggle-on' : ''} onClick={() => useEditor.getState().setGrid({ snap: !grid.snap })} />
+        <IconButton icon="guides" label="Smart snap to objects and hoop" hint="Hold ⌘/Ctrl to skip" size="xs" tipSide="top" aria-pressed={grid.smart} className={grid.smart ? 'toggle-on' : ''} onClick={() => useEditor.getState().setGrid({ smart: !grid.smart })} />
+      </div>
       <div className={`zoom-ctl${sim.active ? ' top' : ''}`}>
         <IconButton icon="zoom-out" label="Zoom out" size="xs" onClick={() => useEditor.getState().setZoom(zoom / 1.25)} tipSide="top" />
         <span className="mono zoom-val">{Math.round(zoom * 100)}%</span>

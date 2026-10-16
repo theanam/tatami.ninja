@@ -35,6 +35,17 @@ test.describe('home and pages', () => {
     await expect(page.getByText('No designs match')).toBeVisible();
   });
 
+  test('the empty canvas can be dismissed to start blank, and stays dismissed', async ({ page }) => {
+    await page.goto('/#/new');
+    await page.getByRole('button', { name: 'Create design' }).click();
+    await expect(page.getByText('Start with your artwork')).toBeVisible();
+    await page.getByRole('button', { name: 'Start with a blank canvas' }).click();
+    await expect(page.getByText('Start with your artwork')).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator('.canvas-wrap')).toBeVisible();
+    await expect(page.getByText('Start with your artwork')).toHaveCount(0);
+  });
+
   test('custom hoop size in the wizard', async ({ page }) => {
     await page.goto('/#/new');
     await page.getByRole('button', { name: /Custom/ }).click();

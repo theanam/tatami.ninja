@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { EngineClient } from '../../engine/client';
-import { renderThumbnail } from '../../render/stitchRender';
+import { backgroundEngine, EngineClient } from '../../engine/client';
 import { saveProject } from '../../storage/db';
 import { useEditor, type ToolId, type ViewMode } from '../../store/editor';
 
@@ -45,8 +44,17 @@ export function useAutosave() {
     if (!project || saveState !== 'saving') return;
     const ready = plan && planFor === project;
     const t = window.setTimeout(
-      () => {
-        const thumb = ready && plan.stitchCount ? renderThumbnail(project, plan) : undefined;
+      async () => {
+        // The thumbnail renders in the background worker, off the main thread.
+        let thumb: string | undefined;
+        if (ready && plan.stitchCount) {
+          try {
+            thumb = (await backgroundEngine().run(project, { thumbnail: { width: 400, height: 300 } })).thumbnail;
+          } catch {
+            thumb = undefined;
+          }
+        }
+        if (latest.current !== project) return; // a newer edit will save instead
         saveProject(project, { thumbnail: thumb, stitchCount: ready ? plan.stitchCount : undefined })
           .then(() => {
             if (latest.current === project) useEditor.getState().setSaveState('saved');
@@ -147,6 +155,7 @@ export function useEditorKeyboard(opts: { readOnly: boolean }) {
         return;
       }
       if (k === '0') return s.requestFit();
+      if (k === 'g' && !e.altKey) return s.setGrid({ show: !s.grid.show });
       if (k === '=' || k === '+') return s.setZoom(s.zoom * 1.25);
       if (k === '-') return s.setZoom(s.zoom / 1.25);
       if (VIEW_KEYS[k]) return s.setView(VIEW_KEYS[k]);

@@ -38,6 +38,29 @@ export interface SimState {
   speed: number;
 }
 
+export interface GridPrefs {
+  show: boolean;
+  /** Grid size in 0.1 mm. */
+  size: number;
+  /** Snap moves, resizes and drawn points to the grid. */
+  snap: boolean;
+  /** Snap to other objects' edges and centers and to the hoop. */
+  smart: boolean;
+}
+
+const PREFS_KEY = 'tatami.gridPrefs';
+const DEFAULT_GRID: GridPrefs = { show: true, size: 50, snap: false, smart: true };
+
+function loadGridPrefs(): GridPrefs {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(PREFS_KEY) : null;
+    if (raw) return { ...DEFAULT_GRID, ...(JSON.parse(raw) as Partial<GridPrefs>) };
+  } catch {
+    /* storage unavailable: use defaults */
+  }
+  return { ...DEFAULT_GRID };
+}
+
 export interface EditorState {
   project: Project | null;
   past: Project[];
@@ -68,6 +91,7 @@ export interface EditorState {
   fitRequest: number;
   /** Waiting for a canvas click to set an object's entry or exit point. */
   pickPoint: { id: string; which: 'entry' | 'exit' } | null;
+  grid: GridPrefs;
   /** Lettering object whose text is being edited in place on the canvas. */
   editingTextId: string | null;
 
@@ -90,6 +114,7 @@ export interface EditorState {
   setSim(s: Partial<SimState>): void;
   setPickPoint(p: EditorState['pickPoint']): void;
   setEditingText(id: string | null): void;
+  setGrid(patch: Partial<GridPrefs>): void;
   setSewPoint(id: string, which: 'entry' | 'exit', pt: Pt | null): void;
 
   // Document operations
@@ -145,7 +170,7 @@ export const useEditor = create<EditorState>((set, get) => {
     lastEditKey: null,
     lastEditAt: 0,
     selection: [],
-    view: 'objects',
+    view: 'artwork',
     tool: 'select',
     zoom: 3,
     pan: { x: 0, y: 0 },
@@ -162,6 +187,7 @@ export const useEditor = create<EditorState>((set, get) => {
     fitRequest: 0,
     pickPoint: null,
     editingTextId: null,
+    grid: loadGridPrefs(),
 
     load(project) {
       set({
@@ -177,7 +203,7 @@ export const useEditor = create<EditorState>((set, get) => {
         saveState: 'saved',
         lastEditKey: null,
         tool: 'select',
-        view: project.objects.length ? 'realistic' : 'objects',
+        view: 'artwork',
         sim: { active: false, playing: false, position: 0, speed: 10 },
         dialog: null,
         warningsOpen: false,
@@ -259,6 +285,15 @@ export const useEditor = create<EditorState>((set, get) => {
     setWarningsOpen: (warningsOpen) => set({ warningsOpen }),
     setSim: (s) => set({ sim: { ...get().sim, ...s } }),
     setPickPoint: (pickPoint) => set({ pickPoint }),
+    setGrid(patch) {
+      const grid = { ...get().grid, ...patch };
+      set({ grid });
+      try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(grid));
+      } catch {
+        /* not persisted */
+      }
+    },
     setEditingText: (editingTextId) => set(editingTextId ? { editingTextId, selection: [editingTextId] } : { editingTextId }),
     setSewPoint(id, which, pt) {
       mapSelected([id], (o) => ({ ...o, [which]: pt }));

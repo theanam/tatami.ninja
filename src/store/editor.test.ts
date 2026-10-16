@@ -28,9 +28,9 @@ beforeEach(() => {
 });
 
 describe('editor store', () => {
-  it('loads a project and opens Realistic when it has objects', () => {
+  it('loads a project and always opens the Artwork view', () => {
     expect(ids()).toEqual(['o1', 'o2', 'o3', 'o4']);
-    expect(s().view).toBe('realistic');
+    expect(s().view).toBe('artwork');
     expect(s().past).toEqual([]);
   });
 
@@ -170,6 +170,14 @@ describe('editor store', () => {
     expect(s().pickPoint).toBeNull();
     s().setSewPoint('o2', 'entry', null);
     expect(s().project!.objects[1].entry).toBeNull();
+  });
+
+  it('keeps grid and snap preferences and remembers them', () => {
+    expect(s().grid).toMatchObject({ show: true, size: 50, snap: false, smart: true });
+    s().setGrid({ snap: true, size: 20 });
+    expect(s().grid).toMatchObject({ snap: true, size: 20 });
+    expect(JSON.parse(localStorage.getItem('tatami.gridPrefs')!)).toMatchObject({ snap: true, size: 20 });
+    s().setGrid({ snap: false, size: 50 });
   });
 
   it('marks the document as saving after an edit', () => {

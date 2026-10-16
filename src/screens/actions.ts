@@ -1,10 +1,9 @@
-import { computeInline } from '../engine/client';
+import { backgroundEngine } from '../engine/client';
 import { importSvg } from '../importers/svg';
 import { ARTWORK_ACCEPT, artworkKind, loadImage, pickFile, projectFromStitchFile, readAsBytes, readAsDataUrl, readAsText, STITCH_FILE_ACCEPT } from '../importers/files';
 import { createProject, newId, parseProjectJson } from '../model/project';
 import type { Backdrop, Project } from '../model/types';
 import { HOOPS } from '../presets';
-import { renderThumbnail } from '../render/stitchRender';
 import { saveProject } from '../storage/db';
 
 /** Save a project with a fresh thumbnail. */
@@ -13,9 +12,9 @@ export async function persistNew(project: Project): Promise<string> {
   let thumbnail: string | undefined;
   let stitchCount = 0;
   try {
-    const { plan } = computeInline(p);
-    stitchCount = plan.stitchCount;
-    if (plan.stitchCount) thumbnail = renderThumbnail(p, plan);
+    const r = await backgroundEngine().run(p, { thumbnail: { width: 400, height: 300 } });
+    stitchCount = r.plan.stitchCount;
+    thumbnail = r.thumbnail;
   } catch {
     /* thumbnail is best effort */
   }

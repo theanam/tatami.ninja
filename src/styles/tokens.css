@@ -90,6 +90,7 @@
   --sb-success-pill: #9FE0B5;
   --sb-overlay: rgba(8, 9, 11, .68);
   --sb-chip-accent-bg: #1F2740;
+  --sb-guide: #FF4FD8;
 
   /* Elevation */
   --sb-shadow-popover: 0 16px 40px rgba(0,0,0,.5);
