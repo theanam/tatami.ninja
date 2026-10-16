@@ -158,6 +158,9 @@ export function HelpPage() {
             <b>Density hotspot</b> — layered stitching that can pucker the fabric. Remove overlap or lower the density.
           </li>
           <li>
+            <b>Lace not connected</b> — on the free-standing lace fabric, parts that touch nothing else fall away when the stabilizer washes out.
+          </li>
+          <li>
             <b>Short stitches</b> — stitches under 1 mm that can break thread. Increase the stitch length or simplify the shape.
           </li>
           <li>

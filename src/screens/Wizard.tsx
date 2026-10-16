@@ -19,6 +19,7 @@ const FABRIC_SWATCH: Record<string, string> = {
   felt: '#5C7F5C',
   canvas: 'repeating-linear-gradient(0deg,rgba(0,0,0,.1) 0 2px,transparent 2px 4px),repeating-linear-gradient(90deg,rgba(0,0,0,.08) 0 2px,transparent 2px 4px),#C9B999',
   'cap-structured': 'repeating-linear-gradient(-38deg,rgba(255,255,255,.1) 0 1px,transparent 1px 4px),linear-gradient(180deg,#3A4862,#2A354B)',
+  lace: 'repeating-linear-gradient(45deg,rgba(255,255,255,.35) 0 1px,transparent 1px 6px),repeating-linear-gradient(-45deg,rgba(255,255,255,.35) 0 1px,transparent 1px 6px),#B9CCD6',
   'cap-unstructured': 'repeating-linear-gradient(-38deg,rgba(0,0,0,.12) 0 1px,transparent 1px 4px),#8A7A62',
 };
 

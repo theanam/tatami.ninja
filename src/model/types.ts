@@ -36,7 +36,8 @@ export type UnderlayType =
   | 'zigzag'
   | 'edge-run+zigzag'
   | 'tatami'
-  | 'knock-down';
+  | 'knock-down'
+  | 'lattice';
 
 export interface ObjectParams {
   /** Tatami fill angle in degrees. */

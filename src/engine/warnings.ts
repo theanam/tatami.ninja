@@ -1,11 +1,11 @@
 import { CMD, type Project, type StitchPlan } from '../model/types';
 import { getFabric } from '../presets';
-import { offsetAreas } from './clip';
-import { areasOf, distToSegment, geometryBounds, type Area, type P } from './geom';
+import { booleanAreas, offsetAreas, strokeAreas } from './clip';
+import { areasOf, distToSegment, geometryBounds, pathsOf, type Area, type P } from './geom';
 
 export interface Warning {
   id: string;
-  kind: 'out-of-hoop' | 'density' | 'short-stitches' | 'small-text' | 'gap' | 'too-large';
+  kind: 'out-of-hoop' | 'density' | 'short-stitches' | 'small-text' | 'gap' | 'too-large' | 'lace-islands';
   severity: 'error' | 'warning';
   title: string;
   message: string;
@@ -190,7 +190,49 @@ export function checkWarnings(project: Project, plan: StitchPlan): Warning[] {
       });
     }
   }
+
+  // 6. Free-standing lace: parts that touch nothing fall off when the stabilizer dissolves.
+  if (getFabric(project.fabricPreset).lace) {
+    const pieces = lacePieces(project);
+    if (pieces.length > 1) {
+      // Name the objects outside the largest piece.
+      pieces.sort((a, b) => b.length - a.length);
+      const loose = pieces.slice(1).flat();
+      out.push({
+        id: 'lace-islands',
+        kind: 'lace-islands',
+        severity: 'warning',
+        title: 'Lace not connected',
+        message: `${listNames(loose)} ${loose.length === 1 ? 'does' : 'do'} not touch the rest of the lace and will fall away when the stabilizer washes out.`,
+        objectIds: loose,
+      });
+    }
+  }
   return out;
+}
+
+/** Groups of object ids whose stitched footprints touch (or overlap). */
+export function lacePieces(project: Project): string[][] {
+  const objs = project.objects.filter((o) => o.visible && o.geometry.kind !== 'stitches');
+  const prints = objs.map((o) => {
+    const a = areasOf(o.geometry);
+    if (a.length) return offsetAreas(a, 2);
+    const lines = pathsOf(o.geometry).map((p) => (p.closed ? [...p.points, p.points[0]] : p.points));
+    return strokeAreas(lines, 12);
+  });
+  const parent = objs.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < objs.length; i++)
+    for (let j = i + 1; j < objs.length; j++) {
+      if (find(i) === find(j)) continue;
+      if (booleanAreas(prints[i], prints[j], 'intersection').length) parent[find(i)] = find(j);
+    }
+  const groups = new Map<number, string[]>();
+  objs.forEach((o, i) => {
+    const r = find(i);
+    groups.set(r, [...(groups.get(r) ?? []), o.id]);
+  });
+  return [...groups.values()];
 }
 
 function gapWarnings(project: Project): Warning[] {

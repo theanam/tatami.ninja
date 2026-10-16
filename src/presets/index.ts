@@ -65,6 +65,8 @@ export interface FabricPreset {
   texture: 'plain' | 'twill' | 'denim' | 'knit' | 'fleece' | 'terry' | 'felt' | 'canvas';
   /** Cap fabrics: sew center-out and bottom-up. */
   cap?: boolean;
+  /** Free-standing lace: the stabilizer washes away, so all parts must connect. */
+  lace?: boolean;
 }
 
 export const FABRICS: FabricPreset[] = [
@@ -128,6 +130,12 @@ export const FABRICS: FabricPreset[] = [
     rowSpacing: 4, satinDensity: 4, fillUnderlay: 'tatami', satinUnderlay: 'edge-run+zigzag', pullComp: 6,
     color: '#8A7A62', weave: '#7A6B54', texture: 'twill',
   },
+  {
+    id: 'lace', name: 'Free-standing lace', hint: 'Water-soluble stabilizer', lace: true,
+    note: 'Sewn on water-soluble stabilizer that washes away: a crossing lattice underlay locks the stitches together and satin edges get heavy underlay. Every part must touch another, or it falls apart.',
+    rowSpacing: 4, satinDensity: 3.5, fillUnderlay: 'lattice', satinUnderlay: 'edge-run+zigzag', pullComp: 1,
+    color: '#DCE7EC', weave: '#C9D7DE', texture: 'plain',
+  },
 ];
 
 export const THREAD_CHARTS: { id: ThreadChart; name: string }[] = [
@@ -144,6 +152,7 @@ export const UNDERLAY_OPTIONS: { id: UnderlayType; name: string }[] = [
   { id: 'edge-run+zigzag', name: 'Edge run + zigzag' },
   { id: 'tatami', name: 'Tatami' },
   { id: 'knock-down', name: 'Knock-down' },
+  { id: 'lattice', name: 'Lace lattice' },
 ];
 
 export const DEFAULT_SPM = 800;

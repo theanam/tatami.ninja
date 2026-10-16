@@ -302,6 +302,17 @@ function fillUnderlay(areas: Area[], r: ResolvedParams, entry: P | null): Piece[
     case 'knock-down':
       rows(-10, 25, 'tatami');
       break;
+    case 'lattice': {
+      // Lace: an edge run plus two crossing passes, so every stitch is tied into a net.
+      edge(5);
+      for (const turn of [45, -45]) {
+        const groups = fillAreas(offsetAreas(areas, -8), { angleDeg: r.angleDeg + turn, spacing: 20, stitchLen: 30, startNear: cur });
+        for (const g of groups) out.push({ pts: g, underlay: true });
+        const lp = lastPoint(out);
+        if (lp) cur = lp;
+      }
+      break;
+    }
   }
   return out;
 }

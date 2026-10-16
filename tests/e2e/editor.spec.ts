@@ -443,3 +443,15 @@ test('the tracer can make a photo stitch in color or mono', async ({ page }) => 
   await dialog.getByRole('button', { name: /^Add 1 objects/ }).click();
   await expect(page.locator('.seq-list .row', { hasText: 'Photo ·' })).toHaveCount(1);
 });
+
+test('free-standing lace: fabric choice and a warning for loose parts', async ({ page }) => {
+  await openSample(page);
+  await page.getByRole('region', { name: 'Design' }).getByLabel('Fabric', { exact: true }).selectOption('lace');
+  await expect(page.getByRole('button', { name: 'No warnings' })).toBeVisible();
+  // Move the star far away from the rest: it no longer touches anything.
+  await page.locator('.seq-list .row').filter({ hasText: 'Star' }).click();
+  await page.getByRole('button', { name: 'Align right' }).click();
+  await page.getByRole('button', { name: 'Align top' }).click();
+  await page.getByRole('button', { name: /\d+ warnings?/ }).click();
+  await expect(page.getByRole('dialog').getByText('Lace not connected')).toBeVisible();
+});
