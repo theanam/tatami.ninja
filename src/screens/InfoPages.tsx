@@ -165,6 +165,10 @@ export function HelpPage() {
             <b>Density hotspot</b> — layered stitching that can pucker the fabric. Remove overlap or lower the density.
           </li>
           <li>
+            <b>Needle break risk</b> — the needle keeps hitting the same spot, or goes through many layers of stitching. Space knots apart, remove hidden
+            stitches, lower the density, or use a larger sharp needle and sew slower.
+          </li>
+          <li>
             <b>Lace not connected</b> — on the free-standing lace fabric, parts that touch nothing else fall away when the stabilizer washes out.
           </li>
           <li>

@@ -5,7 +5,7 @@ import { areasOf, distToSegment, geometryBounds, pathsOf, type Area, type P } fr
 
 export interface Warning {
   id: string;
-  kind: 'out-of-hoop' | 'density' | 'short-stitches' | 'small-text' | 'gap' | 'too-large' | 'lace-islands';
+  kind: 'out-of-hoop' | 'density' | 'short-stitches' | 'small-text' | 'gap' | 'too-large' | 'lace-islands' | 'needle-break';
   severity: 'error' | 'warning';
   title: string;
   message: string;
@@ -191,7 +191,11 @@ export function checkWarnings(project: Project, plan: StitchPlan): Warning[] {
     }
   }
 
-  // 6. Free-standing lace: parts that touch nothing fall off when the stabilizer dissolves.
+  // 6. Needle break risk: the needle hitting the same spot again and again, or going
+  //    through a thick stack of stitching.
+  out.push(...needleWarnings(project, plan, listNames));
+
+  // 7. Free-standing lace: parts that touch nothing fall off when the stabilizer dissolves.
   if (getFabric(project.fabricPreset).lace) {
     const pieces = lacePieces(project);
     if (pieces.length > 1) {
@@ -207,6 +211,83 @@ export function checkWarnings(project: Project, plan: StitchPlan): Warning[] {
         objectIds: loose,
       });
     }
+  }
+  return out;
+}
+
+/** Needle holes in the same 0.2 mm spot above this count risk deflecting or breaking the needle. */
+export const SAME_SPOT_MAX = 8;
+/** Needle holes in a 0.5 mm cell above this count (normal designs stay at about 6). */
+export const CELL_MAX = 10;
+/** Layers of fill/satin in one 1 mm cell, with at least STACK_MIN_HOLES holes, count as a thick stack. */
+export const STACK_LAYERS = 4;
+export const STACK_MIN_HOLES = 16;
+
+function needleWarnings(project: Project, plan: StitchPlan, listNames: (ids: string[]) => string): Warning[] {
+  const spot = new Map<number, number>();
+  const cell = new Map<number, number>();
+  const mm = new Map<number, number>();
+  const layers = new Map<number, Set<number>>();
+  const key = (x: number, y: number, s: number) => Math.floor(x / s) * 100003 + Math.floor(y / s);
+  const add = (m: Map<number, number>, k: number) => m.set(k, (m.get(k) ?? 0) + 1);
+  for (let i = 0; i < plan.cmds.length; i++) {
+    if (plan.cmds[i] !== CMD.STITCH || plan.obj[i] < 0) continue;
+    const x = plan.xs[i];
+    const y = plan.ys[i];
+    const o = plan.obj[i];
+    const ks = key(x, y, 2);
+    add(spot, ks);
+    add(cell, key(x, y, 5));
+    const km = key(x, y, 10);
+    add(mm, km);
+    const t = project.objects[o]?.type;
+    if (t && t !== 'run' && t !== 'stitches') {
+      if (!layers.has(km)) layers.set(km, new Set());
+      layers.get(km)!.add(o);
+    }
+  }
+  // Objects with holes piled into one spot (0.2 mm) or a tiny area (0.5 mm), and the worst count.
+  const sameSpot = new Map<number, number>();
+  for (let i = 0; i < plan.cmds.length; i++) {
+    if (plan.cmds[i] !== CMD.STITCH || plan.obj[i] < 0) continue;
+    const x = plan.xs[i];
+    const y = plan.ys[i];
+    const inSpot = spot.get(key(x, y, 2)) ?? 0;
+    const inCell = cell.get(key(x, y, 5)) ?? 0;
+    if (inSpot >= SAME_SPOT_MAX || inCell >= CELL_MAX) sameSpot.set(plan.obj[i], Math.max(sameSpot.get(plan.obj[i]) ?? 0, inSpot, inCell));
+  }
+  const stacked = new Set<number>();
+  let worstLayers = 0;
+  for (const [k, set] of layers) {
+    if (set.size >= STACK_LAYERS && (mm.get(k) ?? 0) >= STACK_MIN_HOLES) {
+      worstLayers = Math.max(worstLayers, set.size);
+      for (const o of set) stacked.add(o);
+    }
+  }
+  const out: Warning[] = [];
+  const ids = (s: Iterable<number>) => [...s].map((i) => project.objects[i]?.id).filter((x): x is string => !!x);
+  if (sameSpot.size) {
+    const hit = ids(sameSpot.keys());
+    const most = Math.max(...sameSpot.values());
+    out.push({
+      id: 'needle-same-spot',
+      kind: 'needle-break',
+      severity: 'warning',
+      title: 'Needle break risk',
+      message: `In ${listNames(hit)} up to ${most} needle holes land within half a millimetre. Space knots or ties further apart, use fewer repeats, or move the start and end points.`,
+      objectIds: hit,
+    });
+  }
+  if (stacked.size) {
+    const hit = ids(stacked);
+    out.push({
+      id: 'needle-stack',
+      kind: 'needle-break',
+      severity: 'warning',
+      title: 'Needle break risk',
+      message: `${worstLayers} layers of stitching overlap where ${listNames(hit)} meet. Turn on Remove hidden stitches, lower the density, or use a larger sharp needle (80/12–90/14) and sew slower.`,
+      objectIds: hit,
+    });
   }
   return out;
 }

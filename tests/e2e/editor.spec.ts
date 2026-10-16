@@ -481,3 +481,14 @@ test('the design library adds ready-made shapes', async ({ page }) => {
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('.seq-list .row')).toHaveCount(5);
 });
+
+test('warns about needle break risk, with what to do', async ({ page }) => {
+  await openSample(page);
+  await expect(page.getByRole('button', { name: 'No warnings' })).toBeVisible();
+  await page.locator('.seq-list .row').filter({ hasText: 'Inner ring' }).click();
+  await page.getByLabel('Style', { exact: true }).selectOption('candlewick');
+  await page.getByRole('button', { name: /\d+ warnings?/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Needle break risk')).toBeVisible();
+  await expect(dialog.getByText(/Space knots or ties further apart/)).toBeVisible();
+});
