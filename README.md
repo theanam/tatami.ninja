@@ -1,100 +1,102 @@
-# tatami.ninja
+<p align="center">
+  <img src="docs/images/logo.svg" width="88" height="88" alt="tatami.ninja logo" />
+</p>
 
-tatami.ninja is a free, open-source embroidery digitizer that runs entirely in your browser. It turns artwork into machine-ready stitch files (PES, DST, JEF, EXP, VP3, XXX and HUS) with nothing to install. Your designs never leave your device.
+<h1 align="center">tatami.ninja</h1>
 
-**Live app:** https://tatami.ninja/
+<p align="center">
+  <strong>A free, open-source embroidery digitizer that runs entirely in your browser.</strong><br />
+  Turn artwork into machine-ready stitch files: no install, no account, nothing uploaded.
+</p>
 
-## Features
+<p align="center">
+  <a href="https://tatami.ninja/"><strong>Open the app →</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://tatami.ninja/#/help">Help</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/theanam/tatami.ninja/issues">Report an issue</a>
+</p>
 
-- **Objects, not stitches.** Draw or import shapes and set their stitch type: run, satin, tatami fill, contour fill or appliqué. Stitches regenerate live in a background worker.
-- **Import:**
-  - SVG artwork: filled shapes become fills, lines become run stitches and thick strokes become satin columns. Colors come from the SVG.
-  - PNG or JPG as a tracing backdrop.
-  - Auto-digitize: color reduction and region tracing, with satin for narrow regions and fills for wide ones.
-- **Drawing tools:** pen, run, satin column (click left and right rails), fill, shapes, lettering, appliqué, node editing and a measure tool.
-- **Lettering:** four built-in fonts, with height, spacing and text on an arc.
-- **Fabric presets** set density, underlay and pull compensation. Per-object overrides for underlay, pull compensation, ties and trims are under Advanced.
-- **Sequencing:**
-  - The object list is the sewing order, grouped into color blocks.
-  - Drag to reorder, auto-order by color, hide and lock.
-  - Union, subtract and intersect shapes, add an offset outline, and convert runs to satin.
-- **Previews:** Objects, Stitches and a Realistic thread render on the fabric. The stitch-out simulator has play, scrub, 1–20× speed and sewing-order progress.
-- **Warnings:**
-  - The design is outside the hoop, with one-click scale to fit.
-  - Density hotspots.
-  - Short stitches.
-  - Lettering that is too small.
-- **Export:** PES, DST, JEF, EXP, VP3, XXX and HUS, a printable PDF color sheet, and the editable `.tatami.json` project file.
-- **Open stitch files:** DST, PES, JEF and EXP files open recolor-only.
-- **Autosave:** designs are saved in the browser (IndexedDB). There are no accounts and nothing is uploaded.
+<p align="center">
+  <a href="https://github.com/theanam/tatami.ninja/actions/workflows/ci.yml"><img src="https://github.com/theanam/tatami.ninja/actions/workflows/ci.yml/badge.svg" alt="CI and deploy status" /></a>
+</p>
 
-## Run it locally
+<p align="center">
+  <img src="docs/images/editor-realistic.png" alt="The tatami.ninja editor showing a realistic thread preview of a navy and gold badge in a 130 × 180 mm hoop" />
+</p>
+
+## What you can do
+
+- **Bring your artwork.** Import an SVG and every shape becomes stitches: fills, run lines and satin borders, in the SVG's own colors. Or drop in a PNG or JPG and trace over it, or let Auto-digitize do it for you.
+- **Edit objects, not stitches.** Switch any shape between run, satin, tatami fill, contour fill and appliqué, then adjust the fill angle, density and stitch length. Stitches regenerate as you work.
+- **Draw and letter.** Use pen, satin column, fill and shape tools, with node editing. Add lettering in four fonts, including text on an arc.
+- **Start from good defaults.** Pick your machine, hoop and fabric, and the fabric preset sets density, underlay and pull compensation for you.
+- **See it before you sew it.** Preview a realistic thread render on your fabric, watch a stitch-out simulation, and get warnings for designs outside the hoop, density hotspots, short stitches and gaps between colors.
+- **Export for your machine.** Download PES, DST, JEF, EXP, VP3, XXX or HUS, with a printable color sheet. You can also open existing DST, PES, JEF and EXP files to recolor them.
+- **Keep your work private.** Designs autosave in your browser and are never uploaded. Download a `.tatami.json` file to back up or share a design.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/editor-objects.png" alt="Objects view with a satin border selected, showing its rails and rungs" /><br /><sub><b>Objects view.</b> Satin rails and rungs, with live properties.</sub></td>
+    <td width="50%"><img src="docs/images/simulator.png" alt="Stitch-out simulator halfway through sewing a star" /><br /><sub><b>Simulator.</b> Watch the stitch-out at 1–20× speed.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/export.png" alt="Export dialog with file format cards and a design summary" /><br /><sub><b>Export.</b> Pick a file format and download it, with a printable color sheet.</sub></td>
+    <td width="50%"><img src="docs/images/home.png" alt="Home screen with templates and saved designs" /><br /><sub><b>Your designs.</b> Start from a template or pick up where you left off.</sub></td>
+  </tr>
+</table>
+
+## Supported machines and files
+
+| Format | Machines | Export | Open |
+| --- | --- | :---: | :---: |
+| PES | Brother, Baby Lock | ✓ | ✓ |
+| DST | Tajima, most commercial machines | ✓ | ✓ |
+| JEF | Janome | ✓ | ✓ |
+| EXP | Bernina | ✓ | ✓ |
+| VP3 | Husqvarna Viking, Pfaff | ✓ | |
+| XXX | Singer | ✓ | |
+| HUS | Older Husqvarna Viking | ✓ | |
+
+Copy the exported file to a USB stick and open it from your machine's USB menu. Always test-sew a new design on a scrap of the same fabric first.
+
+## Quick start
+
+1. Open **[tatami.ninja](https://tatami.ninja/)**, choose **New design**, and pick your machine, hoop and fabric.
+2. Choose **Import artwork…** and select an SVG, or draw shapes with the tools on the left.
+3. Select objects to fine-tune their stitch type and settings, and drag them in the Sequence list to set the sewing order.
+4. Switch to **Realistic**, press **Simulate**, then **Export**.
+
+The in-app [Help page](https://tatami.ninja/#/help) covers every tool and keyboard shortcut.
+
+## Development
 
 You need Node 24 (see `.nvmrc`).
 
 ```sh
 npm install
-npm run dev          # http://localhost:5182
+npm run dev        # http://localhost:5182
 ```
 
-| Command | What it does |
+| Command | Purpose |
 | --- | --- |
-| `npm run dev` | Dev server on port 5182 |
-| `npm run build` | Type-check and build to `dist/` |
-| `npm run preview` | Serve the production build on port 5182 |
-| `npm test` | Unit tests (Vitest): engine, file formats, importers, store, components |
-| `npm run test:e2e` | End-to-end tests (Playwright) for the main flows |
-| `npm run typecheck` | TypeScript, strict |
+| `npm run dev` | Start the dev server on port 5182 |
+| `npm test` | Run the unit tests (Vitest) |
+| `npm run test:e2e` | Run the end-to-end tests (Playwright; first run `npx playwright install chromium`) |
+| `npm run typecheck` | Check types (strict TypeScript) |
+| `npm run build` | Build the production site into `dist/` |
 
-The first time you run the e2e tests, install the browser with `npx playwright install chromium`.
+The app is built with Vite, React and TypeScript. The stitch engine (`src/engine`) and the file writers (`src/formats`) are pure TypeScript with no DOM access. The engine runs in a Web Worker and is deterministic: the same design always produces the same stitches. Geometry is stored in 0.1 mm units, the native unit of most embroidery formats.
 
-## Deploying to GitHub Pages
+Every push to `main` is tested, built and deployed to [tatami.ninja](https://tatami.ninja/) with GitHub Pages.
 
-The `CI and deploy` workflow (`.github/workflows/ci.yml`) runs on every push to `main`. It type-checks, runs the unit and e2e tests, builds the app and publishes `dist/` to GitHub Pages. To turn it on, open the repository settings, go to **Pages**, and set **Source** to **GitHub Actions**.
+## Contributing
 
-Google Analytics is added only to the deployed Pages site, never to the source or local builds. The workflow inserts the tag after building when the repository variable `GA_MEASUREMENT_ID` is set (Settings → Secrets and variables → Actions → Variables). If the variable is not set, the site deploys without analytics.
+Bug reports, ideas and pull requests are welcome. Please [open an issue](https://github.com/theanam/tatami.ninja/issues) to report a problem or discuss a change. For anything else, email [anam.ahmed.a@gmail.com](mailto:anam.ahmed.a@gmail.com).
 
-The build uses a relative base path and hash routing, so it works from any path, including `https://theanam.github.io/tatami.ninja/` or a custom domain such as `tatami.ninja`. It needs no server rewrites.
+## Acknowledgements
 
-## How it is built
-
-```
-src/
-  engine/      geometry → stitch commands (pure TS, runs in a Web Worker): run, tatami, satin, contour,
-               appliqué, underlay, ties, jumps/trims/color changes, warnings
-  formats/     stitch-file writers (PES, DST, JEF, EXP, VP3, XXX, HUS) and readers (DST, PES, JEF, EXP)
-  importers/   SVG import, auto-digitize, lettering (opentype.js), stitch-file projects
-  model/       project format, transforms, node editing, templates, units
-  presets/     machines, hoops, fabric presets, thread charts
-  render/      Canvas2D realistic and stitch rendering, fabric textures, thumbnails
-  store/       Zustand editor store with undo/redo
-  storage/     IndexedDB autosave
-  screens/     Home, New design wizard, Editor, Help, About
-tests/e2e/     Playwright flows
-```
-
-Geometry is stored as integers in 0.1 mm units, which is the native DST unit. Origin is the hoop center and +y points down. The engine is deterministic: the same project always produces the same stitches.
-
-The stack is Vite, React and TypeScript (strict), with Zustand and idb. It uses no component library. The project uses a single package rather than separate workspace packages to keep the GitHub Pages build simple. The engine, formats and presets folders stay free of DOM code so they can run in the worker.
-
-## Help, issues and contact
-
-- In-app help: the **Help** page (`#/help`) covers workflows, stitch types, file formats and keyboard shortcuts.
-- Bugs and feature requests: [GitHub issues](https://github.com/theanam/tatami.ninja/issues)
-- Everything else: anam.ahmed.a@gmail.com
-
-## Credits
-
-- Geist and Geist Mono by Vercel (SIL Open Font License 1.1). They are bundled for offline use.
-- Lettering fonts:
-  - Oswald and Pacifico (SIL OFL 1.1)
-  - Roboto Slab (Apache License 2.0)
-  - Geist Bold (SIL OFL 1.1)
-
-  Their licenses are in `public/lettering/`.
-- The format writers and readers follow [pyembroidery](https://github.com/EmbroidePy/pyembroidery) (MIT, © 2018 Tatarize).
-- [Clipper](https://www.npmjs.com/package/clipper-lib) (Boost Software License), [opentype.js](https://opentype.js.org/) (MIT) and [jsPDF](https://github.com/parallax/jsPDF) (MIT).
-
-## License
-
-The project license has not been chosen yet.
+- [Geist and Geist Mono](https://vercel.com/font) by Vercel (SIL OFL 1.1)
+- Lettering fonts: Oswald and Pacifico (SIL OFL 1.1), and Roboto Slab (Apache 2.0). Their license files are in `public/lettering/`.
+- File formats follow [pyembroidery](https://github.com/EmbroidePy/pyembroidery) (MIT).
+- [Clipper](https://www.npmjs.com/package/clipper-lib), [opentype.js](https://opentype.js.org/) and [jsPDF](https://github.com/parallax/jsPDF).

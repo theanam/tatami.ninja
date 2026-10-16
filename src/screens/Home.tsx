@@ -55,7 +55,7 @@ export function Home() {
       });
   }, []);
   useEffect(() => {
-    document.title = 'tatami.ninja — your designs';
+    document.title = 'tatami.ninja — free embroidery digitizer in your browser';
     refresh();
   }, [refresh]);
 
