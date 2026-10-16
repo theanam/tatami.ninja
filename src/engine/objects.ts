@@ -152,8 +152,12 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
       if (obj.params.strokeSatin) {
         const out: Piece[] = [];
         let cur = entry;
-        for (const area of areas) {
-          for (const col of strokeColumns([area], r.pullComp)) {
+        const glyphs = areas.slice();
+        while (glyphs.length) {
+          const area = takeNearest(glyphs, (a) => a.outer, cur);
+          const cols = strokeColumns([area], r.pullComp);
+          while (cols.length) {
+            const col = takeNearest(cols, (c) => [c.a[0], c.a[c.a.length - 1]], cur);
             out.push(...satinColumnPieces(col, { ...r, underlay: r.underlay === 'none' ? 'none' : 'center-run', pullComp: 0 }, cur));
             cur = lastPoint(out) ?? cur;
           }
@@ -163,7 +167,10 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
       // Satin on a closed shape: zigzag across each part's short direction (e.g. per glyph).
       const out: Piece[] = [];
       let cur = entry;
-      for (const area of areas) {
+      // Nearest part next (letters left to right), so the machine does not jump back and forth.
+      const parts = areas.slice();
+      while (parts.length) {
+        const area = takeNearest(parts, (a) => a.outer, cur);
         const axis = principalAngle(area.outer);
         const angleDeg = -((axis + Math.PI / 2) * 180) / Math.PI;
         const under = fillUnderlay([area], { ...r, angleDeg }, cur);
@@ -381,6 +388,20 @@ function inwardRing(ring: P[], areas: Area[]): P[] {
   // prongStitches puts prongs at +perp = (-dy, dx).
   const probe: P = [mid[0] - ((b[1] - a[1]) / l) * 3, mid[1] + ((b[0] - a[0]) / l) * 3];
   return areas.some((ar) => pointInArea(probe, ar)) ? ring : [...ring].reverse();
+}
+
+/** Remove and return the item with a point nearest to `cur` (the leftmost if no position yet). */
+export function takeNearest<T>(items: T[], points: (t: T) => P[], cur: P | null): T {
+  let bi = 0;
+  let bd = Infinity;
+  items.forEach((t, i) => {
+    for (const p of points(t)) {
+      // With no position yet, start at the left (reading order).
+      const d = cur ? (p[0] - cur[0]) ** 2 + (p[1] - cur[1]) ** 2 : p[0];
+      if (d < bd) [bd, bi] = [d, i];
+    }
+  });
+  return items.splice(bi, 1)[0];
 }
 
 export function lastPoint(pieces: Piece[]): P | null {

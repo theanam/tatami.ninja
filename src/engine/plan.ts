@@ -1,5 +1,6 @@
 import { CMD, type Bounds, type ObjectStat, type Project, type StitchObject, type StitchPlan } from '../model/types';
-import { dist, geometryBounds, norm, sub, type P } from './geom';
+import { areasOf, dist, geometryBounds, norm, sub, type P } from './geom';
+import { travelContext, travelPath, type TravelContext } from './travel';
 import { removeHiddenStitches } from './hidden';
 import { generateObject, resolveParams, type Piece } from './objects';
 
@@ -141,6 +142,13 @@ export function generatePlan(project: Project): StitchPlan {
     }
 
     const isRaw = obj.geometry.kind === 'stitches';
+    // Hops between this object's own parts can travel inside it instead of jumping.
+    let ctx: TravelContext | null | undefined;
+    const travel = (from: P, to: P): P[] | null => {
+      if (isRaw || obj.type === 'run' || obj.type === 'applique') return null;
+      if (ctx === undefined) ctx = travelContext(areasOf(obj.geometry));
+      return travelPath(ctx, from, to);
+    };
     let firstGroup = true;
     pieces.forEach((piece, pi) => {
       if (!('pts' in piece)) {
@@ -155,7 +163,12 @@ export function generatePlan(project: Project): StitchPlan {
       } else {
         const d = dist(b.pos, target);
         const needTrim = pendingTrim || d > TRIM_ABOVE;
+        const route = !firstGroup && !pendingTrim && d > TRAVEL_STITCH_MAX ? travel(b.pos, target) : null;
         if (d <= TRAVEL_STITCH_MAX && !pendingTrim && !isRaw) {
+          trimmed = false;
+        } else if (route) {
+          // Stitch the way there (hidden under the stitching), then carry on without a trim.
+          for (const q of route.slice(0, -1)) b.moveTo(CMD.STITCH, q, index);
           trimmed = false;
         } else {
           if (needTrim) b.marker(CMD.TRIM, firstGroup ? -1 : index);
@@ -171,7 +184,7 @@ export function generatePlan(project: Project): StitchPlan {
       const willTrim =
         nextIsStop ||
         (lastGroup && r.trimAfter) ||
-        (!!nextPiece && dist(pts[pts.length - 1], nextPiece.pts[0]) > TRIM_ABOVE);
+        (!!nextPiece && dist(pts[pts.length - 1], nextPiece.pts[0]) > TRIM_ABOVE && !travel(pts[pts.length - 1], nextPiece.pts[0]));
       if (!isRaw) {
         if (r.tieIn && trimmed) pts = tieIn(pts);
         if (r.tieOff && (willTrim || lastGroup)) pts = tieOff(pts);
