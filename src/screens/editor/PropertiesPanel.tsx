@@ -73,6 +73,7 @@ const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
   { value: 'motif', label: 'Motif' },
   { value: 'stipple', label: 'Stipple' },
   { value: 'echo', label: 'Echo' },
+  { value: 'x-stitch', label: 'Cross stitch' },
 ];
 
 const RUN_STYLES: { value: RunStyle; label: string }[] = [
@@ -223,6 +224,8 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
               )}
               {r.fillPattern === 'motif' ? (
                 <LenRow label="Row gap" name="Motif row gap" value={r.patternSpacing} min={0} max={100} step={1} units={units} onChange={(v) => s.setParams(ids, { patternSpacing: v }, 'patternSpacing')} />
+              ) : r.fillPattern === 'x-stitch' ? (
+                <LenRow label="Cell size" name="Cross stitch cell size" value={r.patternSpacing} min={10} max={80} step={1} units={units} onChange={(v) => s.setParams(ids, { patternSpacing: v }, 'patternSpacing')} />
               ) : OPEN_PATTERNS.includes(r.fillPattern) ? (
                 <LenRow label="Spacing" name="Pattern spacing" value={r.patternSpacing} min={10} max={100} step={1} units={units} onChange={(v) => s.setParams(ids, { patternSpacing: v }, 'patternSpacing')} />
               ) : (

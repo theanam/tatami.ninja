@@ -414,3 +414,19 @@ test('appliqué: tack-down and cover choices, cut file in the panel and at expor
   await page.getByRole('button', { name: 'Export' }).click();
   await expect(page.getByLabel('Appliqué cut file (SVG)')).toBeChecked();
 });
+
+test('the tracer can turn an image into cross stitch', async ({ page }) => {
+  await openSample(page);
+  const png = makePng(80, 80, (x, y) => (x > 15 && x < 65 && y > 15 && y < 65 ? [200, 30, 40] : [255, 255, 255]));
+  await page.getByRole('button', { name: 'Design menu' }).click();
+  await chooseFile(page, () => page.getByRole('menuitem', { name: /Import artwork/ }).click(), { name: 'art.png', mimeType: 'image/png', buffer: png });
+  const dialog = page.getByRole('dialog', { name: 'Trace image' });
+  await dialog.getByRole('group', { name: 'Trace mode' }).getByRole('button', { name: 'Cross stitch' }).click();
+  await expect(dialog.getByText('1 colors of cross stitch.')).toBeVisible();
+  await dialog.getByLabel('Cross size in millimetres').fill('3');
+  await dialog.getByLabel('Cross size in millimetres').press('Enter');
+  await dialog.getByRole('button', { name: /^Add 1 objects/ }).click();
+  await page.locator('.seq-list .row', { hasText: 'cross stitch' }).click();
+  await expect(page.getByLabel('Pattern', { exact: true })).toHaveValue('x-stitch');
+  await expect(page.getByLabel('Cross stitch cell size in millimetres')).toHaveValue('3.0');
+});

@@ -8,7 +8,7 @@ import type { FillPattern } from '../model/types';
 
 export type { FillPattern };
 /** Open patterns are lattices; the others cover the shape densely. */
-export const OPEN_PATTERNS: FillPattern[] = ['net', 'zigzag-net', 'cross', 'lines', 'motif', 'stipple', 'echo'];
+export const OPEN_PATTERNS: FillPattern[] = ['net', 'zigzag-net', 'cross', 'lines', 'motif', 'stipple', 'echo', 'x-stitch'];
 /** Patterns that have a direction (the angle control applies). */
 export const ANGLED_PATTERNS: FillPattern[] = ['rows', 'net', 'zigzag-net', 'cross', 'lines', 'motif'];
 
@@ -119,6 +119,8 @@ export function patternLines(areas: Area[], o: Pick<PatternOptions, 'pattern' | 
       return stippleLines(areas, s, o.seed ?? 1);
     case 'echo':
       return echoLines(areas, s);
+    case 'x-stitch':
+      return crossCells(areas, s).map(([x, y]) => [[x, y], [x + s, y + s], [x, y + s], [x + s, y]] as P[]);
     case 'motif':
       // Here `spacing` is the gap between motif rows (may be 0).
       return motifRows(getMotif(o.motif), b.cx, b.cy, b.r, Math.max(20, o.motifSize ?? 60), o.spacing, o.angleDeg);
@@ -131,6 +133,7 @@ export function patternLines(areas: Area[], o: Pick<PatternOptions, 'pattern' | 
  * (the caller jumps/trims between groups).
  */
 export function patternFill(areas: Area[], o: PatternOptions): P[][] {
+  if (o.pattern === 'x-stitch') return crossStitchFill(areas, Math.max(10, o.spacing), o.startNear ?? null);
   const pieces = clipLines(patternLines(areas, o), areas).filter((l) => lineLength(l) >= 5);
   const used = new Array(pieces.length).fill(false);
   const groups: P[][] = [];
@@ -208,4 +211,68 @@ function inside(a: P, b: P, areas: Area[]): boolean {
     if (!areas.some((ar) => pointInArea(p, ar))) return false;
   }
   return true;
+}
+
+/** Grid cells (top-left corners) whose centers lie inside; the grid is anchored at 0,0. */
+export function crossCells(areas: Area[], cell: number): P[] {
+  const b = bboxOf(areas);
+  if (!isFinite(b.minX)) return [];
+  const out: P[] = [];
+  const i0 = Math.floor(b.minX / cell);
+  const j0 = Math.floor(b.minY / cell);
+  for (let j = j0; j * cell < b.maxY; j++)
+    for (let i = i0; i * cell < b.maxX; i++) {
+      const c: P = [(i + 0.5) * cell, (j + 0.5) * cell];
+      if (areas.some((a) => pointInArea(c, a))) out.push([i * cell, j * cell]);
+    }
+  return out;
+}
+
+/**
+ * Cross stitch: an X in every grid cell, sewn row by row (alternating direction). In a row
+ * each X is bottom-left → top-right → top-left → bottom-right, which ends where the next
+ * X starts, so a row is one continuous line.
+ */
+export function crossStitchFill(areas: Area[], cell: number, startNear: P | null): P[][] {
+  const cells = crossCells(areas, cell);
+  const rows = new Map<number, number[]>();
+  for (const [x, y] of cells) {
+    const r = rows.get(y) ?? [];
+    r.push(x);
+    rows.set(y, r);
+  }
+  const ys = [...rows.keys()].sort((a, b) => a - b);
+  if (startNear && ys.length && Math.abs(startNear[1] - ys[ys.length - 1]) < Math.abs(startNear[1] - ys[0])) ys.reverse();
+  const groups: P[][] = [];
+  let group: P[] = [];
+  let cur: P | null = null;
+  ys.forEach((y, ri) => {
+    const xs = rows.get(y)!.sort((a, b) => a - b);
+    // Split the row into runs of touching cells.
+    const runs: number[][] = [];
+    for (const x of xs) {
+      const last = runs[runs.length - 1];
+      if (last && Math.abs(x - last[last.length - 1] - cell) < 0.5) last.push(x);
+      else runs.push([x]);
+    }
+    const ltr = ri % 2 === 0;
+    if (!ltr) runs.reverse();
+    for (const run of runs) {
+      const seq = ltr ? run : [...run].reverse();
+      const start: P = ltr ? [seq[0], y + cell] : [seq[0] + cell, y + cell];
+      // A hop of one cell edge is fine (it lies under the neighboring crosses); further is a jump.
+      if (cur && group.length && dist(cur, start) > cell * 1.5) {
+        groups.push(group);
+        group = [];
+      }
+      group.push(start);
+      for (const x of seq) {
+        if (ltr) group.push([x + cell, y], [x, y], [x + cell, y + cell]);
+        else group.push([x, y], [x + cell, y], [x, y + cell]);
+      }
+      cur = group[group.length - 1];
+    }
+  });
+  if (group.length) groups.push(group);
+  return groups;
 }

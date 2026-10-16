@@ -8,6 +8,7 @@
  * scaled to the design size. With "fill under", colors are not cut out under details, so
  * no fabric shows between neighbouring colors.
  */
+import { normalizeAreas } from '../engine/clip';
 import type { Area, P } from '../engine/geom';
 import { colorName, ensureThread, newId, normalizeHex, rgbToHex } from '../model/project';
 import type { Pt, StitchObject, Thread } from '../model/types';
@@ -236,7 +237,9 @@ export function traceMask(mask: Uint8Array, w: number, h: number): Area[] {
 }
 
 export interface AutoDigitizeOptions {
-  mode?: 'colors' | 'threshold';
+  mode?: 'colors' | 'threshold' | 'cross';
+  /** Cross stitch mode: cell size (0.1 mm). */
+  cellSize?: number;
   colors: number;
   /** Threshold mode: 0–255 gray level; omit for automatic (Otsu). */
   threshold?: number | null;
@@ -317,6 +320,7 @@ interface Region {
 }
 
 export function autoDigitize(img: RasterImage, o: AutoDigitizeOptions): AutoDigitizeResult {
+  if (o.mode === 'cross') return crossStitchImage(img, o);
   const { width: w, height: h } = img;
   const preview = new Uint8ClampedArray(w * h * 4);
   const checker = (i: number) => {
@@ -460,4 +464,87 @@ export function autoDigitize(img: RasterImage, o: AutoDigitizeOptions): AutoDigi
     preview: { width: w, height: h, data: preview },
     outlines,
   };
+}
+
+/**
+ * Cross stitch: the image on a grid of cells (cellSize), each cell taking the most common
+ * palette color in it. Every color becomes one object filled with cross stitches, all on
+ * the same grid.
+ */
+function crossStitchImage(img: RasterImage, o: AutoDigitizeOptions): AutoDigitizeResult {
+  const { width: w, height: h } = img;
+  const q = quantize(img, Math.max(2, Math.min(12, o.colors)));
+  const transparent = hasTransparency(img);
+  const bg = o.removeBackground && !transparent ? backgroundLabel(q) : null;
+  const cell = Math.max(10, o.cellSize ?? 25);
+  const scale = o.size / Math.max(w, h);
+  const cx = w / 2;
+  const cy = h / 2;
+  // World (0.1 mm) ↔ image pixels, centered like the other modes.
+  const toPx = (wx: number, wy: number): [number, number] => [wx / scale + cx, wy / scale + cy];
+  const i0 = Math.floor((-cx * scale) / cell);
+  const i1 = Math.ceil(((w - cx) * scale) / cell);
+  const j0 = Math.floor((-cy * scale) / cell);
+  const j1 = Math.ceil(((h - cy) * scale) / cell);
+  const cellsByLabel = new Map<number, Area[]>();
+  const preview = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < w * h; i++) {
+    const v = ((i % w >> 4) + (((i / w) | 0) >> 4)) % 2 ? 58 : 44;
+    preview.set([v, v, v, 255], i * 4);
+  }
+  const counts = new Map<number, number>();
+  for (let j = j0; j < j1; j++) {
+    for (let i = i0; i < i1; i++) {
+      const [x0, y0] = toPx(i * cell, j * cell);
+      const [x1, y1] = toPx((i + 1) * cell, (j + 1) * cell);
+      counts.clear();
+      let total = 0;
+      // Vote on a 5×5 sample of the cell.
+      for (let sy = 0; sy < 5; sy++)
+        for (let sx = 0; sx < 5; sx++) {
+          const px = Math.floor(x0 + ((x1 - x0) * (sx + 0.5)) / 5);
+          const py = Math.floor(y0 + ((y1 - y0) * (sy + 0.5)) / 5);
+          if (px < 0 || py < 0 || px >= w || py >= h) continue;
+          total++;
+          const l = q.labels[py * w + px];
+          counts.set(l, (counts.get(l) ?? 0) + 1);
+        }
+      if (!total) continue;
+      let best = -1;
+      let bc = 0;
+      for (const [l, c] of counts) if (c > bc) [best, bc] = [l, c];
+      if (best < 0 || best === bg) continue;
+      const list = cellsByLabel.get(best) ?? [];
+      list.push({ outer: [[i * cell, j * cell], [(i + 1) * cell, j * cell], [(i + 1) * cell, (j + 1) * cell], [i * cell, (j + 1) * cell]], holes: [] });
+      cellsByLabel.set(best, list);
+      const col = q.palette[best];
+      for (let py = Math.max(0, Math.floor(y0)); py < Math.min(h, Math.ceil(y1)); py++)
+        for (let px = Math.max(0, Math.floor(x0)); px < Math.min(w, Math.ceil(x1)); px++) preview.set([...col, 255], (py * w + px) * 4);
+    }
+  }
+  let threads = o.threads;
+  const objects: StitchObject[] = [];
+  const outlines: P[][] = [];
+  const round = (pts: P[]): Pt[] => pts.map(([x, y]) => [Math.round(x), Math.round(y)]);
+  // Larger colors first.
+  const order = [...cellsByLabel.entries()].sort((a, b) => b[1].length - a[1].length);
+  for (const [label, cells] of order) {
+    const hex = rgbToHex(...q.palette[label]);
+    const res = ensureThread(threads, hex);
+    threads = res.threads;
+    const merged = normalizeAreas(cells, 'nonzero');
+    objects.push({
+      id: newId('o'),
+      name: `${colorName(hex)} cross stitch`,
+      type: 'tatami',
+      thread: res.id,
+      visible: true,
+      locked: false,
+      geometry: { kind: 'compound', parts: merged.map((a) => ({ points: round(a.outer), holes: a.holes.map(round) })) },
+      params: { fillPattern: 'x-stitch', patternSpacing: cell },
+      advanced: { underlay: 'none', tieIn: true, tieOff: true },
+    });
+    for (const a of merged) for (const r of [a.outer, ...a.holes]) outlines.push(r.map(([x, y]) => toPx(x, y)));
+  }
+  return { objects, threads, palette: q.palette, background: bg, dropped: 0, transparent, preview: { width: w, height: h, data: preview }, outlines };
 }

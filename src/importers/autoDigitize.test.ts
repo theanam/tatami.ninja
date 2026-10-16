@@ -287,3 +287,23 @@ describe('auto-digitize', () => {
     expect(plan.stitchCount).toBeGreaterThan(500);
   });
 });
+
+describe('cross stitch from an image', () => {
+  it('makes one cross-stitch object per color on a shared grid', () => {
+    const img = render(200, 200, WHITE, [
+      { color: RED, inside: rect(20, 20, 100, 180) },
+      { color: BLUE, inside: rect(100, 20, 180, 180) },
+    ]);
+    const res = autoDigitize(img, { mode: 'cross', colors: 3, removeBackground: true, size: 400, cellSize: 20, threads: [] });
+    expect(res.objects).toHaveLength(2);
+    for (const o of res.objects) {
+      expect(o.params.fillPattern).toBe('x-stitch');
+      expect(o.params.patternSpacing).toBe(20);
+      const b = geometryBounds(o.geometry)!;
+      // Cell-aligned: every edge on the 2 mm grid.
+      for (const v of [b.minX, b.maxX, b.minY, b.maxY]) expect(Math.abs(v % 20)).toBe(0);
+    }
+    const plan = generatePlan({ ...(sample as unknown as Project), objects: res.objects, threads: res.threads });
+    expect(plan.stitchCount).toBeGreaterThan(100);
+  });
+});

@@ -45,3 +45,19 @@ describe('fill patterns', () => {
     expect(rowStitches(0, 400, 0, 1, 40, true).map((p) => p[0])).toEqual(a);
   });
 });
+
+describe('cross stitch fill', () => {
+  it('puts an X in every cell, each row one continuous line', async () => {
+    const { crossStitchFill, crossCells } = await import('./patterns');
+    const area: Area = { outer: [[0, 0], [100, 0], [100, 40], [0, 40]], holes: [] };
+    expect(crossCells([area], 20)).toHaveLength(10);
+    const groups = crossStitchFill([area], 20, null);
+    expect(groups).toHaveLength(1);
+    const g = groups[0];
+    // 2 rows × 5 cells × 3 points + 2 row starts.
+    expect(g).toHaveLength(32);
+    expect(g.slice(0, 4)).toEqual([[0, 20], [20, 0], [0, 0], [20, 20]]);
+    // Every step is a diagonal of a cell or a cell edge.
+    for (let i = 1; i < g.length; i++) expect(Math.hypot(g[i][0] - g[i - 1][0], g[i][1] - g[i - 1][1])).toBeLessThanOrEqual(Math.hypot(20, 20) + 0.01);
+  });
+});

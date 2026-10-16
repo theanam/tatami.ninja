@@ -8,7 +8,7 @@ import { rgbToHex } from '../../model/project';
 import { useEditor } from '../../store/editor';
 import { backdropFromImage } from '../actions';
 
-type Mode = 'colors' | 'threshold';
+type Mode = 'colors' | 'threshold' | 'cross';
 
 /** Trace an image into stitch objects: color reduction or a black-and-white threshold. */
 export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
@@ -26,6 +26,7 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
   const [lineColor, setLineColor] = useState('#1A1A1A');
   const [sizeMm, setSizeMm] = useState(Math.round((Math.min(project.hoop.width, project.hoop.height) * 0.6) / 10));
   const [speck, setSpeck] = useState(2);
+  const [cellMm, setCellMm] = useState(2.5);
   const [show, setShow] = useState<'trace' | 'original'>('trace');
   const [outlines, setOutlines] = useState(true);
   const [result, setResult] = useState<AutoDigitizeResult | null>(null);
@@ -63,6 +64,7 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
         invert,
         lineColor,
         size: sizeMm * 10,
+        cellSize: Math.round(cellMm * 10),
         minAreaMm2: speck,
         threads: project.threads,
       });
@@ -78,7 +80,7 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
         });
     }, 180);
     return () => window.clearTimeout(t);
-  }, [raster, mode, colors, removeBg, fillUnder, threshold, invert, lineColor, sizeMm, speck, project.threads, client]);
+  }, [raster, mode, colors, removeBg, fillUnder, threshold, invert, lineColor, sizeMm, speck, cellMm, project.threads, client]);
 
   // Draw the trace preview (or the original) at full trace resolution.
   useEffect(() => {
@@ -204,9 +206,10 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                 options={[
                   { value: 'colors', label: 'Colors' },
                   { value: 'threshold', label: 'Threshold' },
+                  { value: 'cross', label: 'Cross stitch' },
                 ]}
               />
-              {mode === 'colors' ? (
+              {mode !== 'threshold' ? (
                 <>
                   <div className="prop-grid">
                     <ParamRow label="Colors" value={colors} min={2} max={12} step={1} unit="" decimals={0} numLabel="Number of colors" onChange={(v) => setColors(Math.round(v))} />
@@ -231,10 +234,16 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                       Leave the background color unstitched
                     </label>
                   )}
-                  <label className="check">
-                    <input type="checkbox" checked={fillUnder} onChange={(e) => setFillUnder(e.target.checked)} />
-                    Fill under details (no gaps between colors)
-                  </label>
+                  {mode === 'colors' ? (
+                    <label className="check">
+                      <input type="checkbox" checked={fillUnder} onChange={(e) => setFillUnder(e.target.checked)} />
+                      Fill under details (no gaps between colors)
+                    </label>
+                  ) : (
+                    <div className="prop-grid">
+                      <ParamRow label="Cell" value={cellMm} min={1} max={8} step={0.5} unit="mm" decimals={1} numLabel="Cross size in millimetres" onChange={setCellMm} />
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -278,7 +287,7 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
                   numLabel="Longest side in millimetres"
                   onChange={(v) => setSizeMm(Math.round(v))}
                 />
-                <ParamRow label="Drop specks" value={speck} min={0.5} max={20} step={0.5} unit="mm²" decimals={1} numLabel="Drop areas smaller than square millimetres" onChange={setSpeck} />
+                {mode !== 'cross' && <ParamRow label="Drop specks" value={speck} min={0.5} max={20} step={0.5} unit="mm²" decimals={1} numLabel="Drop areas smaller than square millimetres" onChange={setSpeck} />}
               </div>
               <label className="check">
                 <input type="checkbox" checked={keepBackdrop} onChange={(e) => setKeepBackdrop(e.target.checked)} />
@@ -286,7 +295,9 @@ export function AutoDigitizeDialog({ onClose }: { onClose(): void }) {
               </label>
               {result && (
                 <p className="note">
-                  {result.objects.length} objects: {fills} fills, {satins} satin.{result.dropped ? ` ${result.dropped} specks dropped.` : ''}
+                  {mode === 'cross'
+                    ? `${result.objects.length} colors of cross stitch.`
+                    : `${result.objects.length} objects: ${fills} fills, ${satins} satin.${result.dropped ? ` ${result.dropped} specks dropped.` : ''}`}
                 </p>
               )}
             </div>

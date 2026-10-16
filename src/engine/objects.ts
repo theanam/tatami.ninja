@@ -64,7 +64,7 @@ export function resolveParams(obj: StitchObject, fabricId: string): ResolvedPara
   return {
     angleDeg: p.angleDeg ?? 45,
     fillPattern: p.fillPattern ?? 'rows',
-    patternSpacing: p.patternSpacing ?? (p.fillPattern === 'motif' ? 10 : p.fillPattern === 'stipple' ? 40 : 30),
+    patternSpacing: p.patternSpacing ?? (p.fillPattern === 'motif' ? 10 : p.fillPattern === 'stipple' ? 40 : p.fillPattern === 'x-stitch' ? 25 : 30),
     motif: p.motif ?? 'wave',
     motifSize: p.motifSize ?? 60,
     seed: p.seed ?? 1,
