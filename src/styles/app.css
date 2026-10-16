@@ -78,6 +78,7 @@
 .muted-icon { color: var(--sb-text-muted); }
 .hoop-preview { height: 72px; display: flex; align-items: center; justify-content: center; }
 .hoop-preview > div { border-radius: 6px; border: 2px solid var(--sb-icon-disabled); }
+.hoop-preview .cap { border-radius: 40px 40px 6px 6px; }
 .hoop-preview .custom { width: 40px; height: 40px; border-style: dashed; display: flex; align-items: center; justify-content: center; color: var(--sb-text-faint); }
 .custom-hoop { display: flex; gap: 16px; flex-wrap: wrap; }
 .custom-hoop label { display: flex; align-items: center; gap: 8px; font-size: var(--sb-fs-base); color: var(--sb-text-muted); }

@@ -143,7 +143,10 @@ export interface EditorState {
   replaceObjects(objs: StitchObject[], key?: string): void;
   addThread(hex: string, name?: string): string;
   updateThread(id: string, patch: Partial<Thread>): void;
-  removeThread(id: string): void;
+  /** Remove a thread; objects using it switch to `replaceWith` (required when it is in use). */
+  removeThread(id: string, replaceWith?: string): void;
+  /** Cap sewing order: within each color block, center-out then bottom-up. */
+  orderForCaps(): void;
   setProjectFields(patch: Partial<Project>, key?: string): void;
   setBackdrop(b: Backdrop | null): void;
   updateBackdrop(patch: Partial<Backdrop>, key?: string): void;
@@ -510,10 +513,45 @@ export const useEditor = create<EditorState>((set, get) => {
       );
     },
 
-    removeThread(id) {
+    removeThread(id, replaceWith) {
+      const p0 = get().project;
+      if (!p0) return;
+      const used = p0.objects.some((o) => o.thread === id);
+      if (used && (!replaceWith || replaceWith === id || !p0.threads.some((t) => t.id === replaceWith))) return;
+      const affected = used ? p0.objects.filter((o) => o.thread === id).map((o) => o.id) : [];
+      get().update(
+        (p) => ({
+          ...p,
+          threads: p.threads.filter((t) => t.id !== id),
+          objects: used ? p.objects.map((o) => (o.thread === id ? { ...o, thread: replaceWith! } : o)) : p.objects,
+        }),
+        { dirty: affected },
+      );
+      if (get().activeThread === id) set({ activeThread: replaceWith ?? get().project?.threads[0]?.id ?? null });
+    },
+
+    orderForCaps() {
       get().update((p) => {
-        if (p.objects.some((o) => o.thread === id)) return p;
-        return { ...p, threads: p.threads.filter((t) => t.id !== id) };
+        const key = (o: StitchObject) => {
+          const b = objectsBounds([o]);
+          if (!b) return { d: 0, y: 0 };
+          return { d: Math.abs((b.minX + b.maxX) / 2), y: -(b.minY + b.maxY) / 2 };
+        };
+        // Split into runs of the same thread (color blocks), sort each run, keep run order.
+        const out: StitchObject[] = [];
+        let run: StitchObject[] = [];
+        const flush = () => {
+          const keyed = run.map((o, i) => ({ o, i, k: key(o) }));
+          keyed.sort((a, b) => a.k.d - b.k.d || a.k.y - b.k.y || a.i - b.i);
+          out.push(...keyed.map((x) => x.o));
+          run = [];
+        };
+        for (const o of p.objects) {
+          if (run.length && run[0].thread !== o.thread) flush();
+          run.push(o);
+        }
+        flush();
+        return out.every((o, i) => o === p.objects[i]) ? p : { ...p, objects: out };
       });
     },
 

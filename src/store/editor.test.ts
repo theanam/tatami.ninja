@@ -180,6 +180,28 @@ describe('editor store', () => {
     s().setGrid({ snap: false, size: 50 });
   });
 
+  it('removes unused threads, and used ones only with a replacement', () => {
+    const extra = s().addThread('#00FF00');
+    s().removeThread(extra);
+    expect(s().project!.threads.map((t) => t.id)).not.toContain(extra);
+    s().removeThread('t2'); // used by three objects, no replacement: refused
+    expect(s().project!.threads.map((t) => t.id)).toContain('t2');
+    s().removeThread('t2', 't1');
+    expect(s().project!.threads.map((t) => t.id)).toEqual(['t1']);
+    expect(s().project!.objects.every((o) => o.thread === 't1')).toBe(true);
+    s().undo();
+    expect(s().project!.threads.map((t) => t.id)).toEqual(['t1', 't2']);
+  });
+
+  it('orders each color block center-out and bottom-up for caps', () => {
+    s().load({
+      ...fixture(),
+      objects: [square('left', -400), square('center', -50), square('right', 200), { ...square('other', -50), thread: 't2' }],
+    });
+    s().orderForCaps();
+    expect(ids()).toEqual(['center', 'right', 'left', 'other']);
+  });
+
   it('marks the document as saving after an edit', () => {
     s().setSaveState('saved');
     s().renameObject('o1', 'X');

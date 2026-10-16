@@ -192,5 +192,29 @@ export async function createFromTemplate(id: TemplateInfo['id']): Promise<Projec
       );
       return addText(p, { content: 'ADVENTURE', font: 'oswald', height: 110, spacing: 6, arc: 0, x: 0, y: 55 }, '#F2D23C', 'Yellow');
     }
+    case 'cap-front': {
+      const hoop = HOOPS.find((h) => h.id === 'cap-130x60')!;
+      let p = createProject({ name: 'Cap front', machine: 'brother', hoop, fabric: 'cap-structured' });
+      const white = ensureThread(p.threads, '#F4F4F0', 'White');
+      p = {
+        ...p,
+        threads: white.threads,
+        objects: [
+          obj({
+            name: 'Underline',
+            type: 'satin',
+            thread: white.id,
+            geometry: { kind: 'polyline', points: [[-330, 175], [0, 195], [330, 175]] },
+            params: { width: 30, shortStitches: true, splitAbove: 80 },
+          }),
+        ],
+      };
+      return addText(p, { content: 'TEAM', font: 'oswald', height: 250, spacing: 20, arc: 0, x: 0, y: 115 }, '#F4F4F0', 'White');
+    }
+    case 'wide-cap': {
+      const hoop = HOOPS.find((h) => h.id === 'cap-360x70')!;
+      const p = createProject({ name: 'Wide cap', machine: 'commercial', hoop, fabric: 'cap-unstructured' });
+      return addText(p, { content: 'BRAND NAME', font: 'geist', height: 220, spacing: 15, arc: 0, x: 0, y: 110 }, '#1E2430', 'Black');
+    }
   }
 }

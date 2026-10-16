@@ -4,6 +4,7 @@ import { IconButton, Spinner } from '../../components/ui';
 import { colorBlocks } from '../../model/project';
 import type { StitchObject, StitchType } from '../../model/types';
 import { fmtInt } from '../../model/units';
+import { getFabric } from '../../presets';
 import { useEditor } from '../../store/editor';
 
 export const TYPE_ICON: Record<StitchType, { icon: string; label: string }> = {
@@ -51,9 +52,16 @@ export function SequencePanel({ readOnly }: { readOnly: boolean }) {
           Sequence
         </h2>
         {project.objects.length > 1 && !readOnly && (
-          <button className="btn small" onClick={() => s.autoOrderByColor()}>
-            Auto-order by color
-          </button>
+          <div className="seq-actions">
+            {getFabric(project.fabricPreset).cap && (
+              <button className="btn small" title="Within each color: center out, then bottom up. Caps pucker less this way." onClick={() => s.orderForCaps()}>
+                Order for caps
+              </button>
+            )}
+            <button className="btn small" onClick={() => s.autoOrderByColor()}>
+              Auto-order by color
+            </button>
+          </div>
         )}
       </div>
       {project.objects.length === 0 ? (

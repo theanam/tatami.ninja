@@ -1,7 +1,7 @@
 import { readStitchFile } from '../formats';
 import { colorName, createProject, newId, normalizeHex } from '../model/project';
 import { CMD, type Project, type StitchObject, type Thread } from '../model/types';
-import { HOOPS } from '../presets';
+import { FLAT_HOOPS } from '../presets';
 import type { RasterImage } from './autoDigitize';
 
 export const STITCH_FILE_ACCEPT = '.dst,.pes,.pec,.jef,.exp';
@@ -37,7 +37,7 @@ export function artworkKind(name: string, type = ''): ArtworkKind {
 
 /** Smallest standard hoop that holds a design of this size (0.1 mm). */
 export function hoopFor(w: number, h: number) {
-  return HOOPS.find((hp) => (w <= hp.width && h <= hp.height) || (w <= hp.height && h <= hp.width)) ?? HOOPS[HOOPS.length - 1];
+  return FLAT_HOOPS.find((hp) => (w <= hp.width && h <= hp.height) || (w <= hp.height && h <= hp.width)) ?? FLAT_HOOPS[FLAT_HOOPS.length - 1];
 }
 
 /** Open a DST/PES/JEF/EXP as a recolor-only project: one raw-stitch object per color block. */

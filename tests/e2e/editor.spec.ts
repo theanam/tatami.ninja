@@ -72,6 +72,31 @@ test.describe('editor', () => {
     await expect(page.locator('.block-head')).toHaveCount(4);
   });
 
+  test('threads can be edited and removed from the strip', async ({ page }) => {
+    await openSample(page);
+    // Edit via the pencil button.
+    await page.getByRole('button', { name: 'Edit Navy' }).click();
+    await page.getByRole('dialog', { name: /Edit thread Navy/ }).getByLabel('Name').fill('Midnight');
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('.thread-chip', { hasText: 'Midnight' })).toBeVisible();
+    // An unused thread is removed straight away.
+    await page.getByRole('button', { name: 'Add thread color' }).click();
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('.thread-chip')).toHaveCount(3);
+    const added = (await page.locator('.thread-chip').nth(2).innerText()).replace(/^\d+ · /, '');
+    await page.getByRole('button', { name: `Remove ${added}` }).click();
+    await expect(page.locator('.thread-chip')).toHaveCount(2);
+    // A used thread asks for a replacement.
+    await page.getByRole('button', { name: 'Remove Gold' }).click();
+    const dlg = page.getByRole('dialog', { name: /Edit thread Gold/ });
+    await expect(dlg.getByText('3 objects use Gold')).toBeVisible();
+    await dlg.getByRole('button', { name: 'Remove thread' }).click();
+    await expect(page.locator('.thread-chip')).toHaveCount(1);
+    await expect(page.locator('.block-head')).toHaveCount(1);
+    await page.keyboard.press('ControlOrMeta+z');
+    await expect(page.locator('.thread-chip')).toHaveCount(2);
+  });
+
   test('exports PES with a color sheet and DST', async ({ page }) => {
     await openSample(page);
     await page.getByRole('button', { name: 'Export' }).click();

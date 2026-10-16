@@ -517,7 +517,7 @@ function DesignSettings({ readOnly }: { readOnly: boolean }) {
             id="hoop"
             value={hoopValue}
             options={[
-              ...HOOPS.map((h) => ({ value: h.id, label: `${hoopLabel(h)} mm` })),
+              ...HOOPS.map((h) => ({ value: h.id, label: h.cap ? `${h.label} ${hoopLabel(h)} mm` : `${hoopLabel(h)} mm` })),
               ...(hoopValue === 'custom' ? [{ value: 'custom', label: `${hoopLabel(project.hoop)} mm (custom)` }] : []),
             ]}
             onChange={(v) => {

@@ -12,7 +12,9 @@ export interface TemplateInfo {
     | 'leaf'
     | 'rose-line'
     | 'paw-print'
-    | 'hex-patch';
+    | 'hex-patch'
+    | 'cap-front'
+    | 'wide-cap';
   name: string;
   meta: string;
 }
@@ -30,4 +32,6 @@ export const TEMPLATES: TemplateInfo[] = [
   { id: 'rose-line', name: 'Rose line art', meta: '100 × 100 mm · run stitch' },
   { id: 'paw-print', name: 'Paw print', meta: '100 × 100 mm · 1 color' },
   { id: 'hex-patch', name: 'Hexagon patch', meta: '130 × 180 mm · lettering' },
+  { id: 'cap-front', name: 'Cap front', meta: 'Cap frame 130 × 60 mm' },
+  { id: 'wide-cap', name: 'Wide cap', meta: '270° cap frame 360 × 70 mm' },
 ];

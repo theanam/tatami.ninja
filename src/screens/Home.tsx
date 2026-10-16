@@ -94,6 +94,20 @@ const TEMPLATE_ICONS: Record<TemplateInfo['id'], JSX.Element> = {
       </g>
     </svg>
   ),
+  'cap-front': (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <path d="M5 23c0-8 5-14 12-14s12 6 12 14z" fill="#2F3B52" />
+      <path d="M3 23h28c0 2-2 3-4 3H7c-2 0-4-1-4-3z" fill="#27324A" />
+      <path d="M11 18h12" stroke="#F4F4F0" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  ),
+  'wide-cap': (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <path d="M4 22c0-7 6-12 13-12s13 5 13 12z" fill="#8A7A62" />
+      <path d="M2 22h30c0 2-2 3-4 3H6c-2 0-4-1-4-3z" fill="#7A6B54" />
+      <path d="M6 17.5h22" stroke="#1E2430" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
   'hex-patch': (
     <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
       <path d="M10 5h14l8 12-8 12H10L2 17z" fill="#1F6F6B" stroke="#F2D23C" strokeWidth="1.8" strokeDasharray=".5 .3" />

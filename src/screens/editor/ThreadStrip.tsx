@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconButton, Select } from '../../components/ui';
+import { IconButton, Select, toast } from '../../components/ui';
 import { colorName, normalizeHex } from '../../model/project';
 import type { Thread, ThreadChart } from '../../model/types';
 import { THREAD_CHARTS } from '../../presets';
@@ -18,7 +18,7 @@ export function ThreadStrip() {
   const active = useEditor((s) => s.activeThread);
   const selection = useEditor((s) => s.selection);
   const simActive = useEditor((s) => s.sim.active);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; removing: boolean } | null>(null);
   const threads = useMemo(() => orderedThreads(project.threads, project.objects.map((o) => o.thread)), [project.threads, project.objects]);
   const s = useEditor.getState();
 
@@ -32,7 +32,7 @@ export function ThreadStrip() {
     const hex = palette.find((h) => !project.threads.some((t) => t.hex.toUpperCase() === h)) ?? '#7C7D82';
     const id = s.addThread(hex, colorName(hex));
     s.setActiveThread(id);
-    setEditing(id);
+    setEditing({ id, removing: false });
   };
 
   return (
@@ -40,22 +40,50 @@ export function ThreadStrip() {
       <span className="strip-label">Threads</span>
       <div className="thread-chips">
         {threads.map((t, i) => (
-          <div key={t.id} className="thread-chip-wrap">
+          <div key={t.id} className={`thread-chip-wrap${active === t.id ? ' active' : ''}`}>
             <button
-              className={`btn thread-chip${active === t.id ? ' active' : ''}`}
+              className="thread-chip"
               aria-pressed={active === t.id}
-              title={selection.length ? `Use ${t.name} for the selection (double-click to edit)` : `Draw with ${t.name} (double-click to edit)`}
+              title={selection.length ? `Use ${t.name} for the selection` : `Draw with ${t.name}`}
               onClick={() => pick(t)}
-              onDoubleClick={() => setEditing(t.id)}
+              onDoubleClick={() => setEditing({ id: t.id, removing: false })}
               onContextMenu={(e) => {
                 e.preventDefault();
-                setEditing(t.id);
+                setEditing({ id: t.id, removing: false });
               }}
             >
               <span className="swatch-dot" style={{ background: t.hex }} />
               {i + 1} · {t.name}
             </button>
-            {editing === t.id && <ThreadEditor thread={t} onClose={() => setEditing(null)} used={project.objects.some((o) => o.thread === t.id)} />}
+            {!simActive && (
+              <>
+                <IconButton icon="pen" label={`Edit ${t.name}`} size="xs" tipSide="top" className="chip-act" onClick={() => setEditing({ id: t.id, removing: false })} />
+                <IconButton
+                  icon="close"
+                  label={`Remove ${t.name}`}
+                  size="xs"
+                  tipSide="top"
+                  className="chip-act"
+                  onClick={() => {
+                    const used = project.objects.some((o) => o.thread === t.id);
+                    if (used) setEditing({ id: t.id, removing: true });
+                    else {
+                      s.removeThread(t.id);
+                      toast(`Removed ${t.name}. Press ⌘Z to undo.`);
+                    }
+                  }}
+                />
+              </>
+            )}
+            {editing?.id === t.id && (
+              <ThreadEditor
+                thread={t}
+                startRemoving={editing.removing}
+                onClose={() => setEditing(null)}
+                usedBy={project.objects.filter((o) => o.thread === t.id).length}
+                others={project.threads.filter((x) => x.id !== t.id)}
+              />
+            )}
           </div>
         ))}
         {!simActive && <IconButton icon="plus" label="Add thread color" size="xs" onClick={addThread} tipSide="top" />}
@@ -76,11 +104,25 @@ export function ThreadStrip() {
   );
 }
 
-function ThreadEditor({ thread, onClose, used }: { thread: Thread; onClose(): void; used: boolean }) {
+function ThreadEditor({
+  thread,
+  onClose,
+  usedBy,
+  others,
+  startRemoving,
+}: {
+  thread: Thread;
+  onClose(): void;
+  usedBy: number;
+  others: Thread[];
+  startRemoving: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const s = useEditor.getState();
   const chart = useEditor((st) => st.project?.threadChart);
   const chartName = THREAD_CHARTS.find((c) => c.id === chart)?.name ?? 'Chart';
+  const [removing, setRemoving] = useState(startRemoving);
+  const [replaceWith, setReplaceWith] = useState(others[0]?.id ?? '');
   useEffect(() => {
     const close = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) onClose();
@@ -93,6 +135,11 @@ function ThreadEditor({ thread, onClose, used }: { thread: Thread; onClose(): vo
       document.removeEventListener('keydown', esc);
     };
   }, [onClose]);
+  const remove = () => {
+    s.removeThread(thread.id, usedBy ? replaceWith : undefined);
+    toast(usedBy ? `Removed ${thread.name}; its objects now use ${others.find((o) => o.id === replaceWith)?.name}.` : `Removed ${thread.name}.`);
+    onClose();
+  };
   return (
     <div className="popover thread-editor" ref={ref} role="dialog" aria-label={`Edit thread ${thread.name}`}>
       <label className="te-row">
@@ -114,22 +161,46 @@ function ThreadEditor({ thread, onClose, used }: { thread: Thread; onClose(): vo
           onKeyDown={(e) => e.stopPropagation()}
         />
       </label>
-      <div className="te-actions">
-        <button
-          className="btn small"
-          disabled={used}
-          title={used ? 'This thread is used by objects' : undefined}
-          onClick={() => {
-            s.removeThread(thread.id);
-            onClose();
-          }}
-        >
-          Remove
-        </button>
-        <button className="btn small pri" onClick={onClose}>
-          Done
-        </button>
-      </div>
+      {removing ? (
+        <div className="te-remove">
+          {usedBy > 0 ? (
+            others.length ? (
+              <>
+                <p className="meta">
+                  {usedBy} {usedBy === 1 ? 'object uses' : 'objects use'} {thread.name}. Switch {usedBy === 1 ? 'it' : 'them'} to:
+                </p>
+                <Select
+                  label="Replacement thread"
+                  value={replaceWith}
+                  options={others.map((o) => ({ value: o.id, label: o.name }))}
+                  onChange={setReplaceWith}
+                />
+              </>
+            ) : (
+              <p className="meta">This is the only thread and objects use it. Add another thread first.</p>
+            )
+          ) : (
+            <p className="meta">Remove {thread.name} from this design?</p>
+          )}
+          <div className="te-actions">
+            <button className="btn small" onClick={() => setRemoving(false)}>
+              Cancel
+            </button>
+            <button className="btn small danger" disabled={usedBy > 0 && !others.length} onClick={remove}>
+              Remove thread
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="te-actions">
+          <button className="btn small" onClick={() => setRemoving(true)}>
+            Remove…
+          </button>
+          <button className="btn small pri" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      )}
     </div>
   );
 }

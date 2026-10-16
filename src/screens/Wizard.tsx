@@ -17,6 +17,8 @@ const FABRIC_SWATCH: Record<string, string> = {
   towel: 'radial-gradient(circle,rgba(0,0,0,.12) 1px,transparent 1.8px) 0 0/4px 4px,#F0EDE6',
   felt: '#5C7F5C',
   canvas: 'repeating-linear-gradient(0deg,rgba(0,0,0,.1) 0 2px,transparent 2px 4px),repeating-linear-gradient(90deg,rgba(0,0,0,.08) 0 2px,transparent 2px 4px),#C9B999',
+  'cap-structured': 'repeating-linear-gradient(-38deg,rgba(255,255,255,.1) 0 1px,transparent 1px 4px),linear-gradient(180deg,#3A4862,#2A354B)',
+  'cap-unstructured': 'repeating-linear-gradient(-38deg,rgba(0,0,0,.12) 0 1px,transparent 1px 4px),#8A7A62',
 };
 
 export function Wizard() {
@@ -97,7 +99,10 @@ export function Wizard() {
                 return (
                   <SelectableCard key={h.id} selected={hoopId === h.id} onSelect={() => setHoopId(h.id)} className="center">
                     <div className="hoop-preview">
-                      <div style={{ width: Math.max(22, h.width * k), height: Math.max(22, h.height * k) }} />
+                      <div
+                        className={h.cap ? 'cap' : undefined}
+                        style={h.cap ? { width: Math.min(84, Math.max(44, h.width * k * 0.9)), height: 22 } : { width: Math.max(22, h.width * k), height: Math.max(22, h.height * k) }}
+                      />
                     </div>
                     <span className="opt-title mono">
                       {h.width / 10} × {h.height / 10}

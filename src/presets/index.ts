@@ -24,6 +24,8 @@ export interface HoopPreset {
   height: number;
   label: string;
   inches: string;
+  /** Cap frames (sewn on a curved cap front). */
+  cap?: boolean;
 }
 
 export const HOOPS: HoopPreset[] = [
@@ -31,7 +33,16 @@ export const HOOPS: HoopPreset[] = [
   { id: '130x180', width: 1300, height: 1800, label: 'Medium', inches: '5 × 7 in' },
   { id: '160x260', width: 1600, height: 2600, label: 'Large', inches: '6 × 10 in' },
   { id: '200x300', width: 2000, height: 3000, label: 'Extra large', inches: '8 × 12 in' },
+  { id: 'cap-130x60', width: 1300, height: 600, label: 'Cap frame', inches: '5 × 2.4 in', cap: true },
+  { id: 'cap-360x70', width: 3600, height: 700, label: 'Wide cap 270°', inches: '14 × 2.75 in', cap: true },
 ];
+
+/** Flat hoops only (cap frames are chosen deliberately, never automatically). */
+export const FLAT_HOOPS = HOOPS.filter((h) => !h.cap);
+
+export function isCapHoop(id: string): boolean {
+  return !!HOOPS.find((h) => h.id === id)?.cap;
+}
 
 export interface FabricPreset {
   id: string;
@@ -52,6 +63,8 @@ export interface FabricPreset {
   color: string;
   weave: string;
   texture: 'plain' | 'twill' | 'denim' | 'knit' | 'fleece' | 'terry' | 'felt' | 'canvas';
+  /** Cap fabrics: sew center-out and bottom-up. */
+  cap?: boolean;
 }
 
 export const FABRICS: FabricPreset[] = [
@@ -102,6 +115,18 @@ export const FABRICS: FabricPreset[] = [
     note: 'Heavy fabric: standard density with extra pull compensation.',
     rowSpacing: 4, satinDensity: 4, fillUnderlay: 'edge-run', satinUnderlay: 'edge-run+zigzag', pullComp: 5,
     color: '#C8B48F', weave: '#B39E78', texture: 'canvas',
+  },
+  {
+    id: 'cap-structured', name: 'Cap · structured', hint: 'Stiff front, buckram backing', cap: true,
+    note: 'Structured caps: edge-run and zigzag underlay hold the stiff front, with extra pull compensation. Sew from the center out and bottom up, and keep lettering at least 6 mm tall.',
+    rowSpacing: 4, satinDensity: 4, fillUnderlay: 'edge-run+zigzag', satinUnderlay: 'edge-run+zigzag', pullComp: 5,
+    color: '#2F3B52', weave: '#27324A', texture: 'twill',
+  },
+  {
+    id: 'cap-unstructured', name: 'Cap · unstructured', hint: 'Soft "dad" caps', cap: true,
+    note: 'Soft caps flex while sewing: tatami underlay, more pull compensation and a firm tear-away backing. Sew from the center out and bottom up.',
+    rowSpacing: 4, satinDensity: 4, fillUnderlay: 'tatami', satinUnderlay: 'edge-run+zigzag', pullComp: 6,
+    color: '#8A7A62', weave: '#7A6B54', texture: 'twill',
   },
 ];
 

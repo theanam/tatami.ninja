@@ -46,6 +46,24 @@ test.describe('home and pages', () => {
     await expect(page.getByText('Start with your artwork')).toHaveCount(0);
   });
 
+  test('cap frames and cap fabrics are available, with cap sewing order', async ({ page }) => {
+    await page.goto('/#/new');
+    await page.getByRole('button', { name: /130 × 60/ }).click();
+    await page.getByRole('button', { name: /Cap · structured/ }).click();
+    await expect(page.locator('.summary')).toContainText('130 × 60 mm');
+    await expect(page.locator('.setup .note')).toContainText(/center out and bottom up/);
+    await expect(page.getByRole('button', { name: /360 × 70/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Cap · unstructured/ })).toBeVisible();
+    await page.goto('/');
+    await page.getByRole('button', { name: /Cap front/ }).click();
+    await page.waitForURL(/#\/design\//);
+    await expect(page.getByLabel('Hoop', { exact: true })).toHaveValue('cap-130x60');
+    await expect(page.getByLabel('Fabric', { exact: true })).toHaveValue('cap-structured');
+    await expect(page.getByRole('button', { name: 'Order for caps' })).toBeVisible();
+    await page.getByRole('button', { name: 'Order for caps' }).click();
+    await expect(page.getByRole('button', { name: 'No warnings' })).toBeVisible();
+  });
+
   test('custom hoop size in the wizard', async ({ page }) => {
     await page.goto('/#/new');
     await page.getByRole('button', { name: /Custom/ }).click();
