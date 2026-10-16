@@ -3,6 +3,7 @@ import { normalizeAreas } from '../engine/clip';
 import type { P } from '../engine/geom';
 import { newId } from '../model/project';
 import type { Geometry, Pt, StitchObject, TextSpec } from '../model/types';
+import { BUILTIN_FONTS, fontFileUrl, isGoogleFont } from './fontCatalog';
 import { parsePath, simplifyRing } from './svgPath';
 
 export interface LetteringFont {
@@ -12,26 +13,41 @@ export interface LetteringFont {
   style: string;
 }
 
-/** Built-in embroidery fonts (bundled, SIL OFL / Apache 2.0). */
-export const LETTERING_FONTS: LetteringFont[] = [
-  { id: 'geist', name: 'Geist Bold', file: 'geist-bold.ttf', style: 'Sans' },
-  { id: 'oswald', name: 'Oswald', file: 'oswald.ttf', style: 'Condensed block' },
-  { id: 'roboto-slab', name: 'Roboto Slab', file: 'roboto-slab.ttf', style: 'Slab serif' },
-  { id: 'pacifico', name: 'Pacifico', file: 'pacifico.ttf', style: 'Script' },
-];
+/** The bundled fonts (offline). Any Google Font can be used too; see fontCatalog. */
+export const LETTERING_FONTS: LetteringFont[] = BUILTIN_FONTS.map((f) => ({
+  id: f.id,
+  name: f.family,
+  file: f.file!,
+  style: { geist: 'Sans', oswald: 'Condensed block', 'roboto-slab': 'Slab serif', pacifico: 'Script' }[f.id] ?? 'Sans',
+}));
 
 const cache = new Map<string, Promise<Font>>();
 
-/** Load a lettering font from /lettering (works under any GitHub Pages base path). */
-export function loadFont(id: string, fetcher: (url: string) => Promise<ArrayBuffer> = defaultFetch): Promise<Font> {
-  const f = LETTERING_FONTS.find((x) => x.id === id) ?? LETTERING_FONTS[0];
-  let p = cache.get(f.id);
+/**
+ * Load a lettering font's outlines: a bundled TTF, or a Google Font (`gf:<id>`) as WOFF from
+ * Fontsource. Unknown ids fall back to the first built-in. Works under any Pages base path.
+ */
+export function loadFont(id: string, fetcher: (url: string) => Promise<ArrayBuffer> = defaultFetch, weight?: number): Promise<Font> {
+  const fid = isGoogleFont(id) || BUILTIN_FONTS.some((f) => f.id === id) ? id : BUILTIN_FONTS[0].id;
+  const w = isGoogleFont(fid) ? weight ?? 400 : undefined;
+  const key = `${fid}@${w ?? ''}`;
+  let p = cache.get(key);
   if (!p) {
-    p = fetcher(`${import.meta.env.BASE_URL}lettering/${f.file}`).then((buf) => parse(buf));
-    p.catch(() => cache.delete(f.id));
-    cache.set(f.id, p);
+    p = fetcher(fontFileUrl(fid, w)).then((buf) => parse(buf));
+    p.catch(() => cache.delete(key));
+    cache.set(key, p);
   }
   return p;
+}
+
+/** Load the font a text spec asks for. */
+export function loadSpecFont(spec: Pick<TextSpec, 'font' | 'weight'>, fetcher?: (url: string) => Promise<ArrayBuffer>): Promise<Font> {
+  return loadFont(spec.font, fetcher, spec.weight);
+}
+
+/** Vertical metrics (font units) for placing live text over the stitched outline. */
+export function fontMetrics(font: Font) {
+  return { unitsPerEm: font.unitsPerEm, capHeight: capHeight(font), ascender: font.ascender, descender: font.descender };
 }
 
 async function defaultFetch(url: string): Promise<ArrayBuffer> {

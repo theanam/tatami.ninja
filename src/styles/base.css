@@ -162,3 +162,4 @@ input[type='range'] { width: 100%; accent-color: var(--sb-accent); margin: 0; }
 .spin { animation: sb-spin .9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
 .segs.grid .seg { padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
+.segs.grid:has(> :nth-child(5)) .seg { font-size: var(--sb-fs-sm); padding: 0 2px; }

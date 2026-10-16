@@ -23,6 +23,8 @@ export const DENSITY_MIN_CELLS = 10;
 export const SHORT_STITCH = 10;
 /** Objects with at least this many short stitches get a warning. */
 export const SHORT_STITCH_MIN_COUNT = 10;
+/** …and at least this share of the object's stitches. */
+export const SHORT_STITCH_MIN_SHARE = 0.015;
 /** Neighbouring areas closer than this (but not overlapping) leave visible fabric (0.1 mm). */
 export const GAP_MAX = 10;
 /** Lettering below this cap height (0.1 mm) is hard to sew. */
@@ -159,7 +161,8 @@ export function checkWarnings(project: Project, plan: StitchPlan): Warning[] {
       const prevD = Math.hypot(plan.xs[i - 1] - plan.xs[i - 2], plan.ys[i - 1] - plan.ys[i - 2]);
       if (d > 0.5 && d < SHORT_STITCH && prevD < SHORT_STITCH) count++;
     }
-    if (count >= SHORT_STITCH_MIN_COUNT) {
+    // A handful in a large object is harmless; warn when they are a real share of it.
+    if (count >= SHORT_STITCH_MIN_COUNT && count >= st.stitches * SHORT_STITCH_MIN_SHARE) {
       out.push({
         id: `short-${o.id}`,
         kind: 'short-stitches',

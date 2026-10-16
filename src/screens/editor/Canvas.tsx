@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { geometryBounds, type P } from '../../engine/geom';
 import { MAX_OBJECT_SIZE } from '../../engine/plan';
 import { columnFromRails } from '../../engine/satin';
-import { defaultTextSpec, layoutText, loadFont, makeTextObject } from '../../importers/lettering';
+import { defaultTextSpec, layoutText, loadSpecFont, makeTextObject } from '../../importers/lettering';
 import { ensureThread } from '../../model/project';
 import { deleteVertex, insertVertexAfter, listVertices, moveVertex, nearestSegment } from '../../model/nodes';
 import { objectsBounds, satinWidth, scaleObject, translateObject } from '../../model/transform';
@@ -30,6 +30,7 @@ import {
 } from './canvasMath';
 import { constrainSquare, objectFromPath, objectFromSatinClicks, objectFromShape, snap45, type PathTool, type ShapeKind } from './drawTools';
 import { isTypingTarget } from './hooks';
+import { InlineTextEditor, TextToolbar } from './TextTools';
 
 type Drag =
   | { kind: 'pan'; start: P; pan: { x: number; y: number } }
@@ -120,7 +121,13 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
     if (tool !== 'measure') setMeasure(null);
   }, [tool]);
 
-  const cache = useMemo(() => (plan ? buildPathCache(project, plan) : null), [plan, project.threads]);
+  const editingTextId = useEditor((s) => s.editingTextId);
+  const editingIndex = editingTextId ? project.objects.findIndex((o) => o.id === editingTextId) : -1;
+  // Text being edited in place is drawn by the live editor, not as stitches.
+  const cache = useMemo(
+    () => (plan ? buildPathCache(project, plan, editingIndex >= 0 ? new Set([editingIndex]) : undefined) : null),
+    [plan, project.threads, editingIndex], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // ---------- Canvas2D layer ----------
   useEffect(() => {
@@ -262,7 +269,16 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         setSpaceDown(true);
         if (!useEditor.getState().sim.active) e.preventDefault();
       }
-      if (!draft.length) return;
+      if (!draft.length) {
+        // Enter starts editing the selected lettering in place.
+        const st = useEditor.getState();
+        const only = st.selection.length === 1 ? st.project?.objects.find((o) => o.id === st.selection[0]) : null;
+        if (e.key === 'Enter' && only?.text && !only.locked && !st.sim.active && !st.editingTextId && !readOnly) {
+          e.preventDefault();
+          st.setEditingText(only.id);
+        }
+        return;
+      }
       if (e.key === 'Enter') {
         e.preventDefault();
         finishPath(tool === 'fill' || tool === 'applique');
@@ -289,11 +305,11 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
     const thread = ensureActiveThread();
     const spec = defaultTextSpec(Math.round(at[0]), Math.round(at[1]));
     try {
-      const font = await loadFont(spec.font);
+      const font = await loadSpecFont(spec);
       const o = makeTextObject(spec, layoutText(font, spec), thread);
       useEditor.getState().addObjects([o]);
       useEditor.getState().setTool('select');
-      window.setTimeout(() => document.getElementById('lettering-text')?.focus(), 50);
+      useEditor.getState().setEditingText(o.id);
     } catch {
       toast('Could not load the lettering font.', 'error');
     }
@@ -486,6 +502,13 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   };
 
   const onDoubleClick = (e: React.MouseEvent) => {
+    if (tool === 'select' && editable) {
+      const hit = hitTest(project, worldPoint(e), tol);
+      if (hit?.text) {
+        useEditor.getState().setEditingText(hit.id);
+        return;
+      }
+    }
     if (tool !== 'node' || !single || !editable) return;
     const wp = toPt(worldPoint(e));
     const seg = nearestSegment(single.geometry, wp);
@@ -539,7 +562,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const objectsLayer: ReactNode[] = [];
   if (showObjects || showOutlines) {
     for (const o of project.objects) {
-      if (!o.visible) continue;
+      if (!o.visible || o.id === editingTextId) continue;
       const d = geometryPath(o.geometry);
       const color = threadHex(o.thread);
       if (showOutlines) {
@@ -602,7 +625,19 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
       overlays.push(
         <rect key="selbox" className="selbox" x={x0 - 4} y={y0 - 4} width={x1 - x0 + 8} height={y1 - y0 + 8} fill="none" stroke="var(--sb-handle)" strokeWidth={1} strokeDasharray="4 3" />,
       );
-      if (editable && tool === 'select' && sel.every((o) => !o.locked)) {
+      // Dimensions of the selection, live while moving or scaling.
+      const dims = `${fmtLen(b.maxX - b.minX, project.units)} × ${fmtLen(b.maxY - b.minY, project.units)} ${project.units}`;
+      const dw = dims.length * 6.6 + 14;
+      const dimY = Math.min(size.h - 24, y1 + 12);
+      overlays.push(
+        <g key="dims" className="sel-dims" pointerEvents="none" transform={`translate(${(x0 + x1) / 2 - dw / 2} ${dimY})`}>
+          <rect width={dw} height={18} rx={4} fill="var(--sb-accent)" />
+          <text x={dw / 2} y={13} textAnchor="middle" fontSize={11} fill="#fff" fontFamily="var(--sb-font-mono)">
+            {dims}
+          </text>
+        </g>,
+      );
+      if (editable && tool === 'select' && !editingTextId && sel.every((o) => !o.locked)) {
         for (const [cx, cy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
           const hx = cx ? x1 + 4 : x0 - 4;
           const hy = cy ? y1 + 4 : y0 - 4;
@@ -899,6 +934,29 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
             <span className="meta">{TOOL_HINTS[tool]}</span>
           </div>
         )}
+
+      {single?.text && !sim.active && !readOnly && !single.locked && (
+        <TextToolbar
+          o={single}
+          v={v}
+          units={project.units}
+          editing={editingTextId === single.id}
+          onEdit={() => useEditor.getState().setEditingText(single.id)}
+        />
+      )}
+      {editingTextId && !sim.active && (() => {
+        const o = project.objects.find((x) => x.id === editingTextId);
+        if (!o?.text) return null;
+        return (
+          <InlineTextEditor
+            key={o.id}
+            o={o}
+            v={v}
+            color={threadHex(o.thread)}
+            onDone={() => useEditor.getState().setEditingText(null)}
+          />
+        );
+      })()}
 
       {updating && !sim.active && (
         <div className="updating-pill" role="status">

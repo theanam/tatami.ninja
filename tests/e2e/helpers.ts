@@ -76,3 +76,13 @@ export function makePng(width: number, height: number, pixel: (x: number, y: num
     chunk('IEND', Buffer.alloc(0)),
   ]);
 }
+
+/**
+ * Serve Google Font requests locally so lettering tests do not depend on the network:
+ * Fontsource WOFF files get a bundled font, css2 previews get an empty stylesheet.
+ */
+export async function mockFontNetwork(page: Page) {
+  const font = readFileSync(new URL('../../public/lettering/oswald.ttf', import.meta.url));
+  await page.route('https://cdn.jsdelivr.net/fontsource/**', (route) => route.fulfill({ body: font, contentType: 'font/ttf' }));
+  await page.route('https://fonts.googleapis.com/**', (route) => route.fulfill({ body: '', contentType: 'text/css' }));
+}

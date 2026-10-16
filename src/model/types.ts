@@ -65,7 +65,10 @@ export interface AdvancedParams {
 
 export interface TextSpec {
   content: string;
+  /** Built-in font id (e.g. `geist`) or a Google Font as `gf:<fontsource id>`. */
   font: string;
+  /** Font weight for Google Fonts (built-ins have one weight). */
+  weight?: number;
   /** Cap height in 0.1 mm. */
   height: number;
   /** Extra letter spacing in 0.1 mm. */

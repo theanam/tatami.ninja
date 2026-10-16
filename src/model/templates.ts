@@ -1,5 +1,5 @@
 import { importSvg } from '../importers/svg';
-import { layoutText, loadFont, makeTextObject } from '../importers/lettering';
+import { layoutText, loadSpecFont, makeTextObject } from '../importers/lettering';
 import { HOOPS } from '../presets';
 import { createProject, ensureThread, newId } from './project';
 import type { Project, StitchObject, TextSpec } from './types';
@@ -15,7 +15,7 @@ function obj(partial: Partial<StitchObject> & Pick<StitchObject, 'name' | 'type'
 
 async function addText(p: Project, spec: TextSpec, hex: string, name: string): Promise<Project> {
   const res = ensureThread(p.threads, hex, name);
-  const font = await loadFont(spec.font);
+  const font = await loadSpecFont(spec);
   return { ...p, threads: res.threads, objects: [...p.objects, makeTextObject(spec, layoutText(font, spec), res.id)] };
 }
 

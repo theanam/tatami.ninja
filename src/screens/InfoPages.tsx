@@ -63,7 +63,8 @@ const SHORTCUTS: [string, string][] = [
   ['S', 'Satin column — click left and right rail points, Enter to finish'],
   ['F', 'Fill shape — click points, Enter to close'],
   ['U', 'Shapes — drag a rectangle; hold Shift for a circle'],
-  ['T', 'Lettering — click where the text goes'],
+  ['T', 'Lettering — click where the text goes, then type'],
+  ['Enter / double-click', 'Edit the selected lettering in place'],
   ['M', 'Measure — drag to measure a distance'],
   ['⌘/Ctrl Z · ⇧⌘/Ctrl Z', 'Undo · Redo'],
   ['Delete / Backspace', 'Delete the selected objects'],
@@ -130,8 +131,13 @@ export function HelpPage() {
       <section className="info-section">
         <h2>Lettering</h2>
         <p>
-          Pick the Lettering tool (T) and click on the canvas. Type your text, choose a font and height, and drag the Arc slider to curve it over or under a logo.
-          Keep letters at least 5 mm tall; smaller text loses detail and shows a warning.
+          Pick the Lettering tool (T) and click on the canvas, then type straight onto the design. Press Enter or click away when you are done; Escape
+          undoes your typing. Double-click any lettering (or select it and press Enter) to edit it again.
+        </p>
+        <p>
+          The toolbar above the text sets the font, weight, height, letter spacing and an arc over or under a logo. The font list includes every Google Font,
+          each shown in its own typeface. Search by name or filter by style. Google Fonts load when you pick them; the built-in fonts also work offline. Keep
+          letters at least 5 mm tall; smaller text loses detail and shows a warning.
         </p>
       </section>
 
@@ -252,7 +258,7 @@ export function AboutPage() {
         <h2>Credits</h2>
         <ul>
           <li>Geist and Geist Mono fonts by Vercel — SIL Open Font License 1.1.</li>
-          <li>Lettering fonts: Oswald and Pacifico (SIL Open Font License 1.1), Roboto Slab (Apache License 2.0), Geist Bold.</li>
+          <li>Lettering fonts: Google Fonts (served by Google Fonts and Fontsource; each under its own open license). Built-in: Oswald and Pacifico (SIL Open Font License 1.1), Roboto Slab (Apache License 2.0), Geist Bold.</li>
           <li>Stitch-file writers and readers follow pyembroidery by Tatarize (MIT License).</li>
           <li>Polygon offsetting and boolean operations by Clipper (Angus Johnson, Boost Software License).</li>
           <li>opentype.js (MIT), jsPDF (MIT), React (MIT), Zustand (MIT), idb (ISC).</li>

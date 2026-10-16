@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockFontNetwork } from './helpers';
 
 async function newEmptyDesign(page: Page) {
   await page.goto('/#/new');
@@ -46,6 +47,28 @@ test.describe('drawing tools', () => {
     await expect(page.getByLabel('Satin width in millimetres')).toBeVisible();
   });
 
+  test('selections show their dimensions, live while scaling', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('u');
+    const c = await canvasCenter(page);
+    const zoom = Number((await page.locator('.zoom-val').innerText()).replace('%', '')) / 100; // px per mm
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 40 * zoom, c.y + 20 * zoom, { steps: 4 });
+    await page.mouse.up();
+    const dims = page.locator('.sel-dims text');
+    await expect(dims).toHaveText(/^40\.\d × 20\.\d mm$/);
+    const handle = (await page.locator('[data-handle="corner:1,1"]').boundingBox())!;
+    await page.mouse.move(handle.x + 4, handle.y + 4);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + 4 + 40 * zoom, handle.y + 4 + 20 * zoom, { steps: 4 });
+    // Roughly double (the drag starts at the handle, a few px off the corner).
+    await expect
+      .poll(async () => ((await dims.textContent()) ?? "").match(/[\d.]+/g)!.map(Number))
+      .toEqual([expect.closeTo(80, -1), expect.closeTo(40, -1)]);
+    await page.mouse.up();
+  });
+
   test('shapes tool drags a rectangle; select tool moves and nudges it', async ({ page }) => {
     await newEmptyDesign(page);
     await page.keyboard.press('u');
@@ -62,22 +85,75 @@ test.describe('drawing tools', () => {
     await expect(page.locator('.row', { hasText: 'copy' })).toHaveCount(0);
   });
 
-  test('lettering tool adds editable text', async ({ page }) => {
+  test('lettering tool types text in place on the canvas', async ({ page }) => {
     await newEmptyDesign(page);
     await page.keyboard.press('t');
     const c = await canvasCenter(page);
     await page.mouse.click(c.x, c.y);
-    await expect(page.locator('.row', { hasText: '“Text”' })).toBeVisible();
-    await page.getByLabel('Text', { exact: true }).fill('Hello');
+    const inline = page.getByLabel('Edit text');
+    await expect(inline).toBeFocused();
+    await page.keyboard.type('Hello');
+    await page.keyboard.press('Enter');
+    await expect(inline).toHaveCount(0);
     await expect(page.locator('.row', { hasText: '“Hello”' })).toBeVisible();
-    await page.getByLabel('Font').selectOption('pacifico');
-    await page.getByRole('group', { name: 'Baseline' }).getByRole('button', { name: 'Arc up' }).click();
-    await expect(page.getByLabel('Arc radius in millimetres')).toBeVisible();
-    const h = page.getByLabel('Letter height in millimetres');
+    // The right panel no longer holds a text field.
+    await expect(page.locator('.props').getByRole('textbox', { name: 'Text', exact: true })).toHaveCount(0);
+    // Double-click to edit again; Escape restores the text.
+    const box = (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
+    await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page.getByLabel('Edit text')).toHaveValue('Hello');
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('Bye');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.row', { hasText: '“Hello”' })).toBeVisible();
+    // Enter on a selected text starts editing too.
+    await page.keyboard.press('Enter');
+    await expect(page.getByLabel('Edit text')).toBeFocused();
+    await page.keyboard.press('Escape');
+  });
+
+  test('lettering toolbar sets arc and size, and warns about tiny text', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('t');
+    const c = await canvasCenter(page);
+    await page.mouse.click(c.x, c.y);
+    await page.keyboard.press('Enter');
+    const toolbar = page.getByRole('toolbar', { name: 'Lettering' });
+    await toolbar.getByRole('group', { name: 'Baseline' }).getByRole('button', { name: 'Arc ↑' }).click();
+    await expect(toolbar.getByLabel('Arc radius in millimetres')).toBeVisible();
+    const h = toolbar.getByLabel('Letter height in millimetres');
     await h.fill('4');
     await h.press('Enter');
     await page.getByRole('button', { name: /\d+ warnings?/ }).click();
     await expect(page.getByRole('dialog').getByText('Lettering too small')).toBeVisible();
+  });
+
+  test('font picker lists every Google Font with previews and applies the choice', async ({ page }) => {
+    await mockFontNetwork(page);
+    await newEmptyDesign(page);
+    await page.keyboard.press('t');
+    const c = await canvasCenter(page);
+    await page.mouse.click(c.x, c.y);
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: /^Font: Geist/ }).click();
+    const picker = page.getByRole('dialog', { name: 'Choose a font' });
+    await expect(picker.getByPlaceholder(/Search 1,\d{3} fonts/)).toBeVisible();
+    // Rows are set in their own face.
+    await expect(picker.getByRole('option', { name: 'Oswald' }).locator('.fp-name')).toHaveCSS('font-family', /Oswald|tn-oswald/);
+    await picker.getByRole('button', { name: 'Script' }).click();
+    await expect(picker.getByRole('option').first()).toContainText(/\w/);
+    await picker.getByRole('button', { name: 'All' }).click();
+    await picker.getByLabel('Search fonts').fill('lobster');
+    await expect(picker.getByRole('option').first()).toHaveText(/Lobster/);
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: /^Font: Lobster/ })).toBeVisible();
+    await expect(page.locator('.statusbar')).toContainText(/[1-9][\d,]* stitches/);
+    // Keyboard navigation.
+    await page.getByRole('button', { name: /^Font: Lobster/ }).click();
+    await page.getByLabel('Search fonts').fill('open sans');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Choose a font' })).toHaveCount(0);
   });
 
   test('node tool moves a vertex', async ({ page }) => {
@@ -119,6 +195,9 @@ test.describe('transforming lettering', () => {
     const c = await canvasCenter(page);
     await page.mouse.click(c.x, c.y);
     await expect(page.locator('.row', { hasText: '“Text”' })).toBeVisible();
+    // The text opens for in-place editing; keep it as is.
+    await page.keyboard.press('Enter');
+    await expect(page.getByLabel('Edit text')).toHaveCount(0);
   }
   const height = (page: Page) => page.getByLabel('Letter height in millimetres');
   const selBox = async (page: Page) => (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
@@ -140,8 +219,11 @@ test.describe('transforming lettering', () => {
     const h = Number(await height(page).inputValue());
     expect(h).toBeGreaterThan(13);
     expect(h).toBeLessThan(17);
-    // Editing the text keeps the new size.
-    await page.getByLabel('Text', { exact: true }).fill('Texts');
+    // Editing the text in place keeps the new size.
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('End');
+    await page.keyboard.type('s');
+    await page.keyboard.press('Enter');
     await expect(page.locator('.row', { hasText: '“Texts”' })).toBeVisible();
     expect(Number(await height(page).inputValue())).toBeCloseTo(h, 1);
     // Undo restores the original size in one step.

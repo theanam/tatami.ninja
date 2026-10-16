@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { NumberInput, ParamRow, SegmentedControl, Select, Switch, toast } from '../../components/ui';
+import { NumberInput, ParamRow, SegmentedControl, Select, Switch } from '../../components/ui';
 import { resolveParams } from '../../engine/objects';
-import { areasOf, geometryBounds } from '../../engine/geom';
-import { LETTERING_FONTS, layoutText, loadFont, textObjectName } from '../../importers/lettering';
+import { areasOf } from '../../engine/geom';
 import { objectsBounds, satinWidth } from '../../model/transform';
-import type { StitchObject, StitchType, TextSpec, UnderlayType } from '../../model/types';
+import type { StitchObject, StitchType, UnderlayType } from '../../model/types';
 import { fmtLen, fromDisplay, toDisplay, type Units } from '../../model/units';
 import { FABRICS, getFabric, HOOPS, hoopLabel, MACHINES, UNDERLAY_OPTIONS } from '../../presets';
 import { selectedObjects, useEditor } from '../../store/editor';
@@ -110,7 +109,7 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
           options={types}
           onChange={(t) => s.setObjectType(ids, t)}
         />
-        {o.text && <LetteringSection o={o} />}
+        {o.text && <LetteringNote o={o} />}
         <div className="prop-grid two">
           <label htmlFor="fab" className="prop-label">
             Fabric
@@ -317,90 +316,19 @@ function SewPointRow({ o, which, label }: { o: StitchObject; which: 'entry' | 'e
   );
 }
 
-function LetteringSection({ o }: { o: StitchObject }) {
-  const units = useEditor((st) => st.project!.units);
-  const spec = o.text!;
-  const [text, setText] = useState(spec.content);
-  const pending = useRef(0);
-  useEffect(() => setText(spec.content), [spec.content]);
-
-  const apply = async (patch: Partial<TextSpec>, key: string) => {
-    const next = { ...spec, ...patch };
-    const my = ++pending.current;
-    try {
-      const font = await loadFont(next.font);
-      if (my !== pending.current) return;
-      const cur = useEditor.getState().project?.objects.find((x) => x.id === o.id);
-      if (!cur) return;
-      useEditor.getState().replaceObject({ ...cur, text: next, name: patch.content !== undefined ? textObjectName(next.content) : cur.name, geometry: layoutText(font, next) }, key);
-    } catch {
-      toast('Could not load that font.', 'error');
-    }
-  };
-
-  const arcMode = spec.arc === 0 ? 'straight' : spec.arc > 0 ? 'up' : 'down';
+/** Lettering is edited on the canvas; the panel only points there. */
+function LetteringNote({ o }: { o: StitchObject }) {
   return (
-    <div className="lettering">
-      <label htmlFor="lettering-text" className="prop-label">
-        Text
-      </label>
-      <input
-        id="lettering-text"
-        className="input"
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          void apply({ content: e.target.value }, `text-${o.id}`);
-        }}
-        onKeyDown={(e) => e.stopPropagation()}
-      />
-      <div className="prop-grid two">
-        <label htmlFor="font" className="prop-label">
-          Font
-        </label>
-        <Select id="font" value={spec.font} options={LETTERING_FONTS.map((f) => ({ value: f.id, label: `${f.name} · ${f.style}` }))} onChange={(v) => void apply({ font: v }, 'font')} />
-      </div>
-      <div className="prop-grid">
-        <LenRow label="Height" name="Letter height" value={spec.height} min={30} max={600} step={1} units={units} onChange={(v) => void apply({ height: v }, `h-${o.id}`)} />
-        <LenRow label="Spacing" name="Letter spacing" value={spec.spacing} min={-20} max={100} step={1} units={units} onChange={(v) => void apply({ spacing: v }, `sp-${o.id}`)} />
-      </div>
-      <div className="prop-line">
-        <span className="prop-label">Baseline</span>
-        <SegmentedControl
-          label="Baseline"
-          value={arcMode}
-          onChange={(m) => void apply({ arc: m === 'straight' ? 0 : (m === 'up' ? 1 : -1) * (Math.abs(spec.arc) || defaultArcRadius(o)) }, 'arcmode')}
-          options={[
-            { value: 'straight', label: 'Straight' },
-            { value: 'up', label: 'Arc up' },
-            { value: 'down', label: 'Arc down' },
-          ]}
-        />
-      </div>
-      {spec.arc !== 0 && (
-        <div className="prop-grid">
-          <LenRow
-            label="Arc radius"
-            name="Arc radius"
-            value={Math.abs(spec.arc)}
-            min={150}
-            max={2000}
-            step={10}
-            units={units}
-            onChange={(v) => void apply({ arc: Math.sign(spec.arc) * v }, `arc-${o.id}`)}
-          />
-        </div>
-      )}
-      {spec.height < 50 && <p className="note warn-note">Letters under {fmtLen(50, units)} {units} tall lose detail when sewn.</p>}
+    <div className="lettering-note">
+      <p className="note">
+        Lettering: double-click the text on the canvas (or press Enter) to type. Font, size, spacing and arc are in the toolbar above the text.
+      </p>
+      <button className="btn small" disabled={o.locked} onClick={() => useEditor.getState().setEditingText(o.id)}>
+        <Icon name="pen" small />
+        Edit text on canvas
+      </button>
     </div>
   );
-}
-
-/** A gentle default arc: radius about the text's width (at least 40 mm). */
-function defaultArcRadius(o: StitchObject): number {
-  const b = geometryBounds(o.geometry);
-  const w = b ? b.maxX - b.minX : 400;
-  return Math.max(400, Math.round(w / 10) * 10);
 }
 
 function ThreadSelect({ ids, value, id, bare }: { ids: string[]; value: string; id?: string; bare?: boolean }) {

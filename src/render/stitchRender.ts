@@ -80,10 +80,11 @@ function buildRange(plan: StitchPlan, start: number, end: number, hex: string, h
   return { hex, buckets, all, jumps, points, start, end };
 }
 
-export function buildPathCache(project: Project, plan: StitchPlan): PathCache {
+/** `hidden` holds object indexes to leave out (e.g. text being edited in place). */
+export function buildPathCache(project: Project, plan: StitchPlan, hidden?: Set<number>): PathCache {
   const colors = blockColors(project, plan);
   const starts = blockStarts(plan);
-  const blocks = starts.map((s, i) => buildRange(plan, s, i + 1 < starts.length ? starts[i + 1] : plan.cmds.length, colors[i] ?? '#888888'));
+  const blocks = starts.map((s, i) => buildRange(plan, s, i + 1 < starts.length ? starts[i + 1] : plan.cmds.length, colors[i] ?? '#888888', hidden));
   return { plan, blocks };
 }
 

@@ -68,6 +68,8 @@ export interface EditorState {
   fitRequest: number;
   /** Waiting for a canvas click to set an object's entry or exit point. */
   pickPoint: { id: string; which: 'entry' | 'exit' } | null;
+  /** Lettering object whose text is being edited in place on the canvas. */
+  editingTextId: string | null;
 
   load(project: Project): void;
   update(fn: (p: Project) => Project, opts?: { key?: string; dirty?: string[] }): void;
@@ -87,6 +89,7 @@ export interface EditorState {
   setWarningsOpen(o: boolean): void;
   setSim(s: Partial<SimState>): void;
   setPickPoint(p: EditorState['pickPoint']): void;
+  setEditingText(id: string | null): void;
   setSewPoint(id: string, which: 'entry' | 'exit', pt: Pt | null): void;
 
   // Document operations
@@ -158,6 +161,7 @@ export const useEditor = create<EditorState>((set, get) => {
     warningsOpen: false,
     fitRequest: 0,
     pickPoint: null,
+    editingTextId: null,
 
     load(project) {
       set({
@@ -178,6 +182,8 @@ export const useEditor = create<EditorState>((set, get) => {
         dialog: null,
         warningsOpen: false,
         fitRequest: get().fitRequest + 1,
+        editingTextId: null,
+        pickPoint: null,
       });
     },
 
@@ -253,6 +259,7 @@ export const useEditor = create<EditorState>((set, get) => {
     setWarningsOpen: (warningsOpen) => set({ warningsOpen }),
     setSim: (s) => set({ sim: { ...get().sim, ...s } }),
     setPickPoint: (pickPoint) => set({ pickPoint }),
+    setEditingText: (editingTextId) => set(editingTextId ? { editingTextId, selection: [editingTextId] } : { editingTextId }),
     setSewPoint(id, which, pt) {
       mapSelected([id], (o) => ({ ...o, [which]: pt }));
       set({ pickPoint: null });
