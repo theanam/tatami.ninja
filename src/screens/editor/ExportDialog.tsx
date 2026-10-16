@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { Dialog, toast } from '../../components/ui';
 import { saveDesign } from '../../storage/projectFile';
+import { appliqueCutSvg } from '../../export/cutFile';
 import { colorBlockStats, colorSheetPdf, downloadBytes, encodeFormat, fileBaseName } from '../../export/export';
 import { FORMATS } from '../../formats';
 import type { FileFormat } from '../../model/types';
@@ -21,6 +22,8 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const [name, setName] = useState(fileBaseName(project));
   const [sheet, setSheet] = useState(true);
   const [json, setJson] = useState(false);
+  const hasApplique = project.objects.some((o) => o.visible && o.type === 'applique');
+  const [cut, setCut] = useState(true);
   const [thumb, setThumb] = useState<string | undefined>();
   useEffect(() => {
     let alive = true;
@@ -47,6 +50,10 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
       const base = name.trim() || 'design';
       downloadBytes(encodeFormat(format, project, plan), `${base}.${info.ext}`);
       if (sheet) downloadBytes(await colorSheetPdf(project, plan, thumb), `${base}-color-sheet.pdf`, 'application/pdf');
+      if (hasApplique && cut) {
+        const svg = appliqueCutSvg(project.objects.filter((o) => o.visible));
+        if (svg) downloadBytes(svg, `${base}-applique-cut.svg`, 'image/svg+xml');
+      }
       if (json) await saveDesign(project);
       toast(`Downloaded ${base}.${info.ext}`);
       onClose();
@@ -129,6 +136,12 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
             <input type="checkbox" checked={sheet} onChange={(e) => setSheet(e.target.checked)} />
             Also download a printable color sheet (PDF)
           </label>
+          {hasApplique && (
+            <label className="check">
+              <input type="checkbox" checked={cut} onChange={(e) => setCut(e.target.checked)} />
+              Appliqué cut file (SVG)
+            </label>
+          )}
           <label className="check">
             <input type="checkbox" checked={json} onChange={(e) => setJson(e.target.checked)} />
             Also save the editable design (.xtatami)

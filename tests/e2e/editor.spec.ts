@@ -400,3 +400,17 @@ test('removing hidden stitches is a design setting', async ({ page }) => {
   await expect(sw).toHaveAttribute('aria-checked', 'true');
   await expect.poll(() => stitchTotal(page)).not.toBe(before);
 });
+
+test('appliqué: tack-down and cover choices, cut file in the panel and at export', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').filter({ hasText: 'Star' }).click();
+  await page.getByRole('group', { name: 'Stitch type' }).getByRole('button', { name: 'Appliqué' }).click();
+  await page.getByLabel('Tack-down').selectOption('zigzag');
+  await page.getByLabel('Cover', { exact: true }).selectOption('e');
+  await expect(page.getByLabel('Satin spacing in millimetres')).toHaveCount(0);
+  const dl = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Cut file (SVG)' }).click();
+  expect((await dl).suggestedFilename()).toBe('star-cut.svg');
+  await page.getByRole('button', { name: 'Export' }).click();
+  await expect(page.getByLabel('Appliqué cut file (SVG)')).toBeChecked();
+});

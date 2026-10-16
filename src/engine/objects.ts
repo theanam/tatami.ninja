@@ -3,10 +3,10 @@ import { getFabric, type FabricPreset } from '../presets';
 import { offsetAreas } from './clip';
 import { contourFill } from './contour';
 import { fillAreas } from './fill';
-import { areasOf, pathsOf, principalAngle, type Area, type P } from './geom';
+import { areasOf, pathsOf, pointInArea, principalAngle, type Area, type P } from './geom';
 import { OPEN_PATTERNS, patternFill } from './patterns';
 import { runStitches } from './run';
-import { styledRun } from './runStyles';
+import { prongStitches, styledRun } from './runStyles';
 import {
   centerLine,
   columnFromPath,
@@ -177,14 +177,25 @@ export function generateObject(obj: StitchObject, fabricId: string, startNear: P
       for (const ring of rings) out.push({ pts: runStitches(ring, true, 25, entry) });
       out.push({ stop: true });
       // 2. Tack-down just inside the outline, then stop to trim the fabric.
-      for (const a of offsetAreas(areas, -5)) {
-        for (const ring of [a.outer, ...a.holes]) out.push({ pts: runStitches(ring, true, 30, lastPoint(out)) });
+      const tack = obj.params.tackdown ?? 'run';
+      for (const a of offsetAreas(areas, tack === 'zigzag' ? -10 : -5)) {
+        for (const ring of [a.outer, ...a.holes]) {
+          out.push({ pts: tack === 'zigzag' ? zigzagRing(ring, 15, 20, lastPoint(out)) : runStitches(ring, true, 30, lastPoint(out)) });
+        }
       }
       out.push({ stop: true });
-      // 3. Cover satin along the outline.
+      // 3. Cover the raw edge.
+      const cover = obj.params.coverStyle ?? 'satin';
       for (const ring of rings) {
-        const col = columnFromPath(ring, true, r.width);
-        out.push(...satinColumnPieces(col, { ...r, underlay: 'center-run' }, lastPoint(out)));
+        if (cover === 'none') break;
+        if (cover === 'satin' || cover === 'zigzag') {
+          const col = columnFromPath(ring, true, r.width);
+          const cr = cover === 'zigzag' ? { ...r, density: Math.max(12, r.density * 3), underlay: 'none' as const } : { ...r, underlay: 'center-run' as const };
+          out.push(...satinColumnPieces(col, cr, lastPoint(out)));
+        } else {
+          // E / V: the base line follows the edge with prongs reaching in over the fabric.
+          out.push({ pts: prongStitches(inwardRing(ring, areas), true, 25, r.width, cover, lastPoint(out)) });
+        }
       }
       return out;
     }
@@ -318,6 +329,34 @@ export function resolveEntry(obj: StitchObject, startNear: P | null): P | null {
     return best ?? startNear;
   }
   return startNear;
+}
+
+/** Zigzag along a closed ring: `width` across, `step` along. */
+function zigzagRing(ring: P[], width: number, step: number, startNear: P | null): P[] {
+  const pts = runStitches(ring, true, step / 2, startNear);
+  const out: P[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(pts.length - 1, i + 1)];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const l = Math.hypot(dx, dy) || 1;
+    const s = (i % 2 ? 1 : -1) * (width / 2);
+    out.push([pts[i][0] - (dy / l) * s, pts[i][1] + (dx / l) * s]);
+  }
+  return out;
+}
+
+/** The ring, oriented so that "left of travel" (prong side) points into the areas. */
+function inwardRing(ring: P[], areas: Area[]): P[] {
+  if (ring.length < 3) return ring;
+  const a = ring[0];
+  const b = ring[1];
+  const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  const mid: P = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  // prongStitches puts prongs at +perp = (-dy, dx).
+  const probe: P = [mid[0] - ((b[1] - a[1]) / l) * 3, mid[1] + ((b[0] - a[0]) / l) * 3];
+  return areas.some((ar) => pointInArea(probe, ar)) ? ring : [...ring].reverse();
 }
 
 export function lastPoint(pieces: Piece[]): P | null {

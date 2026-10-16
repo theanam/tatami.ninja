@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { IconButton, NumberInput, ParamRow, SegmentedControl, Select, Switch, toast } from '../../components/ui';
 import { resolveParams } from '../../engine/objects';
+import { appliqueCutSvg } from '../../export/cutFile';
+import { downloadBytes } from '../../export/export';
+import { slugify } from '../../model/project';
 import { ANGLED_PATTERNS, OPEN_PATTERNS } from '../../engine/patterns';
 import { areasOf } from '../../engine/geom';
 import { objectsBounds, satinWidth } from '../../model/transform';
@@ -51,6 +54,11 @@ export function ToolOptions() {
       />
     </section>
   );
+}
+
+function downloadCutFile(objs: StitchObject[]) {
+  const svg = appliqueCutSvg(objs);
+  if (svg) downloadBytes(svg, `${slugify(objs[0].name)}-cut.svg`, 'image/svg+xml');
 }
 
 const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
@@ -244,10 +252,10 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
               onChange={(v) => s.setSatinWidth(ids, v, 'satinWidth')}
             />
           )}
-          {o.type === 'applique' && (
-            <LenRow label="Cover width" name="Cover satin width" value={r.width} min={10} max={60} step={1} units={units} onChange={(v) => s.setParams(ids, { width: v }, 'width')} />
+          {o.type === 'applique' && (o.params.coverStyle ?? 'satin') !== 'none' && (
+            <LenRow label="Cover width" name="Cover width" value={r.width} min={10} max={60} step={1} units={units} onChange={(v) => s.setParams(ids, { width: v }, 'width')} />
           )}
-          {(o.type === 'satin' || o.type === 'applique') && (
+          {(o.type === 'satin' || (o.type === 'applique' && (o.params.coverStyle ?? 'satin') === 'satin')) && (
             <LenRow label="Density" name="Satin spacing" value={r.density} min={2} max={10} step={0.5} units={units} onChange={(v) => s.setParams(ids, { density: v }, 'density')} />
           )}
         </div>
@@ -290,6 +298,42 @@ function ObjectProperties({ o, readOnly }: { o: StitchObject; readOnly: boolean 
               <LenRow label="Motif size" name="Motif size" value={r.motifSize} min={20} max={300} step={1} units={units} onChange={(v) => s.setParams(ids, { motifSize: v }, 'motifSize')} />
             </div>
           </>
+        )}
+        {o.type === 'applique' && (
+          <div className="prop-grid two">
+            <label htmlFor="tack" className="prop-label">
+              Tack-down
+            </label>
+            <Select<'run' | 'zigzag'>
+              id="tack"
+              value={o.params.tackdown ?? 'run'}
+              options={[
+                { value: 'run', label: 'Run' },
+                { value: 'zigzag', label: 'Zigzag' },
+              ]}
+              onChange={(v) => s.setParams(ids, { tackdown: v })}
+            />
+            <label htmlFor="cover" className="prop-label">
+              Cover
+            </label>
+            <Select<NonNullable<StitchObject['params']['coverStyle']>>
+              id="cover"
+              value={o.params.coverStyle ?? 'satin'}
+              options={[
+                { value: 'satin', label: 'Satin' },
+                { value: 'zigzag', label: 'Zigzag' },
+                { value: 'e', label: 'E stitch' },
+                { value: 'v', label: 'V stitch' },
+                { value: 'none', label: 'None (raw edge)' },
+              ]}
+              onChange={(v) => s.setParams(ids, { coverStyle: v })}
+            />
+          </div>
+        )}
+        {o.type === 'applique' && (
+          <button className="btn small" onClick={() => downloadCutFile([o])}>
+            <Icon name="download" small /> Cut file (SVG)
+          </button>
         )}
         {o.type === 'tatami' && r.fillPattern === 'rows' && (
           <div className="prop-line">
@@ -527,6 +571,7 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
               { value: 'satin', label: 'Satin' },
               { value: 'tatami', label: 'Tatami', disabled: closedCount < objects.length },
               { value: 'contour', label: 'Contour', disabled: closedCount < objects.length },
+              ...(closedCount === objects.length && !objects.some((o) => o.text) ? [{ value: 'applique' as StitchType, label: 'Appliqué' }] : []),
             ]}
             onChange={(t) => s.setObjectType(objects.map((o) => o.id), t)}
           />

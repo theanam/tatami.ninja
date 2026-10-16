@@ -45,6 +45,10 @@ export interface ObjectParams {
   fillPattern?: FillPattern;
   /** Line spacing of open patterns (net, zigzag net, cross), or the gap between motif rows (0.1 mm). */
   patternSpacing?: number;
+  /** Appliqué: how the fabric edge is covered. */
+  coverStyle?: 'satin' | 'zigzag' | 'e' | 'v' | 'none';
+  /** Appliqué: tack-down stitch. */
+  tackdown?: 'run' | 'zigzag';
   /** Stipple layout seed (change for a different meander). */
   seed?: number;
   /** Motif id for motif fills and motif runs. */
