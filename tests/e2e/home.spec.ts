@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { chooseFile, LOGO_SVG, stitchFile } from './helpers';
+import { chooseFile, LOGO_SVG, makePng, stitchFile } from './helpers';
 
 test.describe('home and pages', () => {
   test('shows the home page with links to GitHub, help and about', async ({ page }) => {
@@ -93,6 +93,15 @@ test.describe('home and pages', () => {
     await page.waitForURL(/#\/design\//);
     await expect(page.getByText('Badge', { exact: true })).toBeVisible();
     await expect(page.getByText('Stripe', { exact: true })).toBeVisible();
+  });
+
+  test('an image imported from Home opens in the tracer', async ({ page }) => {
+    await page.goto('/');
+    const png = makePng(40, 40, (x, y) => (x > 10 && x < 30 && y > 10 && y < 30 ? [200, 30, 40] : [255, 255, 255]));
+    await chooseFile(page, () => page.getByRole('button', { name: 'Import artwork' }).click(), { name: 'photo.png', mimeType: 'image/png', buffer: png });
+    await page.waitForURL(/#\/design\//);
+    await expect(page.getByRole('dialog', { name: 'Trace image' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Trace image' }).getByText(/\d+ objects: /)).toBeVisible();
   });
 
   test('opens a PES stitch file as recolor-only', async ({ page }) => {

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { chooseFile, makePng, openSample } from './helpers';
+import { chooseFile, LOGO_SVG, makePng, openSample } from './helpers';
 
 const stitchTotal = async (page: Page) => Number((await page.locator('.statusbar .chip').first().innerText()).replace(/[^\d]/g, ''));
 
@@ -168,16 +168,52 @@ test.describe('editor', () => {
     await expect(page.locator('.prop-line', { hasText: 'Entry point' })).toContainText('Auto');
   });
 
-  test('imports a PNG as a backdrop and auto-digitizes it', async ({ page }) => {
+  test('an imported image opens the tracer: trace in colors/threshold, or use it as a backdrop', async ({ page }) => {
     await openSample(page);
     const png = makePng(80, 80, (x, y) => (x > 15 && x < 65 && y > 15 && y < 65 ? [200, 30, 40] : y > 70 && x > 10 && x < 70 ? [30, 50, 160] : [255, 255, 255]));
     await page.getByRole('button', { name: 'Design menu' }).click();
     await chooseFile(page, () => page.getByRole('menuitem', { name: /Import artwork/ }).click(), { name: 'art.png', mimeType: 'image/png', buffer: png });
-    await expect(page.getByText('Artwork backdrop')).toBeVisible();
-    await page.getByRole('button', { name: 'Auto-digitize' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Auto-digitize' });
-    await expect(dialog.getByText(/objects: \d+ fills?, \d+ satin/)).toBeVisible();
+    const dialog = page.getByRole('dialog', { name: 'Trace image' });
+    await expect(dialog.getByText(/\d+ objects: \d+ fills?, \d+ satin/)).toBeVisible();
+    // Only real colors: white (background), red and blue.
+    await expect(dialog.locator('.ad-palette .swatch-dot')).toHaveCount(3);
+    // Threshold mode with automatic contrast, then a manual cut-off.
+    await dialog.getByRole('group', { name: 'Trace mode' }).getByRole('button', { name: 'Threshold' }).click();
+    await expect(dialog.getByRole('button', { name: 'Auto contrast ✓' })).toBeVisible();
+    const t = dialog.getByLabel('Threshold gray level');
+    await t.fill('200');
+    await t.press('Enter');
+    await expect(dialog.getByRole('button', { name: 'Auto contrast', exact: true })).toBeVisible();
+    // Use the image as a backdrop instead.
+    await dialog.getByRole('button', { name: 'Use as backdrop' }).click();
+    const panel = page.getByRole('region', { name: 'Backdrop' });
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Hidden' }).or(panel.getByRole('button', { name: 'Visible' })).first().click();
+    // Trace from the backdrop panel and keep the backdrop.
+    await panel.getByRole('button', { name: 'Trace…' }).click();
+    await expect(dialog.getByText(/\d+ objects: /)).toBeVisible();
+    await dialog.getByLabel('Keep the image as a backdrop').check();
     await dialog.getByRole('button', { name: /^Add \d+ objects/ }).click();
     await expect(page.locator('.row', { hasText: /Red fill/ })).toBeVisible();
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Remove' }).click();
+    await expect(panel).toHaveCount(0);
+  });
+
+  test('the tool rail Import item imports SVG directly or opens the tracer for images', async ({ page }) => {
+    await openSample(page);
+    await page.getByRole('button', { name: 'Import (I)' }).click();
+    const menu = page.getByRole('menu', { name: 'Import' });
+    await chooseFile(page, () => menu.getByRole('menuitem', { name: /SVG artwork/ }).click(), {
+      name: 'logo.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from(LOGO_SVG),
+    });
+    await expect(page.locator('.row', { hasText: 'Stripe' })).toBeVisible();
+    await page.keyboard.press('i');
+    await expect(menu).toBeVisible();
+    const png = makePng(40, 40, (x) => (x < 20 ? [0, 0, 0] : [255, 255, 255]));
+    await chooseFile(page, () => menu.getByRole('menuitem', { name: /Image/ }).click(), { name: 'a.png', mimeType: 'image/png', buffer: png });
+    await expect(page.getByRole('dialog', { name: 'Trace image' })).toBeVisible();
   });
 });

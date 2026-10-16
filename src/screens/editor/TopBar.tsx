@@ -9,11 +9,11 @@ interface Props {
   onExport(): void;
   onImport(): void;
   onDownloadProject(): void;
-  onAutoDigitize(): void;
+  onAddImage(): void;
   readOnly: boolean;
 }
 
-export function TopBar({ onExport, onImport, onDownloadProject, onAutoDigitize, readOnly }: Props) {
+export function TopBar({ onExport, onImport, onDownloadProject, onAddImage, readOnly }: Props) {
   const project = useEditor((s) => s.project)!;
   const saveState = useEditor((s) => s.saveState);
   const view = useEditor((s) => s.view);
@@ -107,8 +107,8 @@ export function TopBar({ onExport, onImport, onDownloadProject, onAutoDigitize, 
               </button>
             )}
             {!readOnly && (
-              <button role="menuitem" onClick={() => (setMenu(false), onAutoDigitize())}>
-                <Icon name="auto-digitize" small /> Auto-digitize an image…
+              <button role="menuitem" onClick={() => (setMenu(false), onAddImage())}>
+                <Icon name="image" small /> Add image (trace or backdrop)…
               </button>
             )}
             <button role="menuitem" onClick={() => (setMenu(false), onDownloadProject())}>

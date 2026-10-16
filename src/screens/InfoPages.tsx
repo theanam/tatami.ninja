@@ -66,6 +66,7 @@ const SHORTCUTS: [string, string][] = [
   ['T', 'Lettering — click where the text goes, then type'],
   ['Enter / double-click', 'Edit the selected lettering in place'],
   ['M', 'Measure — drag to measure a distance'],
+  ['I', 'Import: SVG artwork directly, or an image to trace (or use as a backdrop)'],
   ['⌘/Ctrl Z · ⇧⌘/Ctrl Z', 'Undo · Redo'],
   ['Delete / Backspace', 'Delete the selected objects'],
   ['⌘/Ctrl D', 'Duplicate the selection'],
@@ -108,8 +109,9 @@ export function HelpPage() {
       <section className="info-section">
         <h2>Tracing a photo or drawing</h2>
         <p>
-          Import a PNG or JPG and it becomes a backdrop you can trace over. Set its opacity and lock it in the Design panel. Use the Pen, Fill and Satin tools to
-          draw on top, then hide the backdrop. Or let <b>Auto-digitize</b> propose objects: choose the number of colors, and it turns wide areas into fills and
+          Import a PNG or JPG (Import → Image) and it opens in the tracer. Trace it into stitches, or choose <b>Use as backdrop</b> to draw over it by hand; the
+          Backdrop section on the right sets its opacity, visibility and lock. Use the Pen, Fill and Satin tools to
+          draw on top, then hide the backdrop. Or use <b>Trace image</b>: in Colors mode it reduces the image to the colors it really contains; in Threshold mode it makes black-and-white line art with an adjustable contrast cut-off. It traces at high resolution, then turns wide areas into fills and
           narrow ones into satin, dropping tiny specks.
         </p>
       </section>

@@ -6,6 +6,20 @@ import type { Backdrop, Project } from '../model/types';
 import { HOOPS } from '../presets';
 import { saveProject } from '../storage/db';
 
+const pendingTrace = new Map<string, string>();
+
+/** Hand an image to the editor so it opens in the tracer (in-memory: survives route changes). */
+export function setPendingTrace(projectId: string, dataUrl: string) {
+  pendingTrace.set(projectId, dataUrl);
+}
+
+export function takePendingTrace(projectId: string | undefined): string | null {
+  if (!projectId) return null;
+  const src = pendingTrace.get(projectId) ?? null;
+  pendingTrace.delete(projectId);
+  return src;
+}
+
 /** Save a project with a fresh thumbnail. */
 export async function persistNew(project: Project): Promise<string> {
   const p = { ...project, id: project.id ?? newId('p') };
@@ -41,7 +55,7 @@ export async function backdropFromImage(dataUrl: string, hoop: { width: number; 
   return { dataUrl, x: -Math.round(width / 2), y: -Math.round(height / 2), width, height, opacity: 0.4, locked: true, visible: true };
 }
 
-export async function projectFromFile(file: File): Promise<{ project: Project; note?: string }> {
+export async function projectFromFile(file: File): Promise<{ project: Project; note?: string; traceSource?: string }> {
   const kind = artworkKind(file.name, file.type);
   const base = () => createProject({ name: baseName(file.name), machine: 'brother', hoop: HOOPS[1], fabric: 'cotton-twill' });
   switch (kind) {
@@ -57,12 +71,8 @@ export async function projectFromFile(file: File): Promise<{ project: Project; n
       return { project: { ...p, threads: res.threads, objects: res.objects } };
     }
     case 'raster': {
-      const p = base();
-      const backdrop = await backdropFromImage(await readAsDataUrl(file), p.hoop);
-      return {
-        project: { ...p, backdrop },
-        note: 'Image added as a tracing backdrop. Trace it with the drawing tools, or use Auto-digitize.',
-      };
+      // Images open in the tracer once the editor loads (trace, or use as a backdrop).
+      return { project: base(), traceSource: await readAsDataUrl(file) };
     }
     default:
       throw new Error('Unsupported file. Use an SVG, PNG, JPG, a stitch file (DST, PES, JEF, EXP) or a .tatami.json project.');

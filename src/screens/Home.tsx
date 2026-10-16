@@ -10,7 +10,7 @@ import type { Project } from '../model/types';
 import { fmtInt, fmtRelative } from '../model/units';
 import { hoopLabel } from '../presets';
 import { deleteProject, listProjects, loadProject, type ProjectSummary } from '../storage/db';
-import { persistNew, pickArtwork, pickStitchFile, projectFromFile } from './actions';
+import { persistNew, pickArtwork, pickStitchFile, projectFromFile, setPendingTrace } from './actions';
 
 const TEMPLATE_ICONS: Record<TemplateInfo['id'], JSX.Element> = {
   'round-patch': (
@@ -135,13 +135,14 @@ export function Home() {
     refresh();
   }, [refresh]);
 
-  const open = async (make: () => Promise<{ project: Project; note?: string } | null>) => {
+  const open = async (make: () => Promise<{ project: Project; note?: string; traceSource?: string } | null>) => {
     if (busy) return;
     setBusy(true);
     try {
       const res = await make();
       if (!res) return;
       const id = await persistNew(res.project);
+      if (res.traceSource) setPendingTrace(id, res.traceSource);
       if (res.note) toast(res.note);
       navigate(`/design/${id}`);
     } catch (e) {

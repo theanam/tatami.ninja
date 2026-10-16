@@ -87,6 +87,8 @@ export interface EditorState {
   saveState: 'saved' | 'saving';
   sim: SimState;
   dialog: null | 'export' | 'auto-digitize' | 'lettering' | 'shortcuts';
+  /** Image the tracer opens with (a data URL), when it was opened from an import. */
+  traceSource: string | null;
   warningsOpen: boolean;
   fitRequest: number;
   /** Waiting for a canvas click to set an object's entry or exit point. */
@@ -110,6 +112,8 @@ export interface EditorState {
   setComputing(c: boolean): void;
   setSaveState(s: 'saved' | 'saving'): void;
   setDialog(d: EditorState['dialog']): void;
+  /** Open the tracer, optionally with an image to trace. */
+  openTracer(src?: string | null): void;
   setWarningsOpen(o: boolean): void;
   setSim(s: Partial<SimState>): void;
   setPickPoint(p: EditorState['pickPoint']): void;
@@ -186,6 +190,7 @@ export const useEditor = create<EditorState>((set, get) => {
     saveState: 'saved',
     sim: { active: false, playing: false, position: 0, speed: 10 },
     dialog: null,
+    traceSource: null,
     warningsOpen: false,
     fitRequest: 0,
     pickPoint: null,
@@ -284,7 +289,8 @@ export const useEditor = create<EditorState>((set, get) => {
     setActiveThread: (activeThread) => set({ activeThread }),
     setComputing: (computing) => set({ computing }),
     setSaveState: (saveState) => set({ saveState }),
-    setDialog: (dialog) => set({ dialog }),
+    setDialog: (dialog) => set(dialog === null ? { dialog, traceSource: null } : { dialog }),
+    openTracer: (src = null) => set({ dialog: 'auto-digitize', traceSource: src }),
     setWarningsOpen: (warningsOpen) => set({ warningsOpen }),
     setSim: (s) => set({ sim: { ...get().sim, ...s } }),
     setPickPoint: (pickPoint) => set({ pickPoint }),

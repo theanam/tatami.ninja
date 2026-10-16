@@ -27,7 +27,7 @@
 
 ## What you can do
 
-- **Bring your artwork.** Import an SVG and every shape becomes stitches: fills, run lines and satin borders, in the SVG's own colors. Or drop in a PNG or JPG and trace over it, or let Auto-digitize do it for you.
+- **Bring your artwork.** Import an SVG and every shape becomes stitches: fills, run lines and satin borders, in the SVG's own colors. Or drop in a PNG or JPG and trace over it by hand, or use **Trace image**: it keeps only colors that really occur in the picture (or makes clean black-and-white line art in Threshold mode) and traces at high resolution with sub-pixel accuracy.
 - **Edit objects, not stitches.** Switch any shape between run, satin, tatami fill, contour fill and appliqué, then adjust the fill angle, density and stitch length. Stitches regenerate as you work.
 - **Draw and letter.** Use pen, satin column, fill and shape tools, with node editing. Type lettering directly on the canvas in any Google Font, picked from a searchable list that previews every family, and set it on an arc if you like.
 - **Start from good defaults.** Pick your machine, hoop and fabric, and the fabric preset sets density, underlay and pull compensation for you.

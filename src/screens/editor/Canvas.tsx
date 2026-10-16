@@ -1171,7 +1171,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
             <Icon name="upload" />
           </div>
           <h3>Start with your artwork</h3>
-          <p>Drop an SVG to turn each shape into stitches, or a PNG / JPG to trace over.</p>
+          <p>Drop an SVG to turn each shape into stitches, or a PNG / JPG to trace into stitches.</p>
           <button className="btn pri block dz-btn" onClick={() => {
               chooseBlank();
               onImportClick();

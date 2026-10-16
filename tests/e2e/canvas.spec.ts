@@ -26,7 +26,9 @@ test.describe('canvas behaviour', () => {
     await expect(card).toBeVisible();
     const png = makePng(40, 40, (x, y) => (x > 10 && x < 30 && y > 10 && y < 30 ? [200, 30, 40] : [255, 255, 255]));
     await chooseFile(page, () => page.getByRole('button', { name: 'Import artwork…' }).click(), { name: 'logo.png', mimeType: 'image/png', buffer: png });
-    await expect(page.getByText('Artwork backdrop')).toBeVisible();
+    // Images open the tracer; even cancelling it leaves the card gone.
+    await expect(page.getByRole('dialog', { name: 'Trace image' })).toBeVisible();
+    await page.getByRole('dialog', { name: 'Trace image' }).getByRole('button', { name: 'Cancel' }).click();
     await expect(card).toHaveCount(0);
     await page.reload();
     await expect(page.locator('.canvas-wrap')).toBeVisible();

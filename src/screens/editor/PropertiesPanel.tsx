@@ -491,7 +491,6 @@ function DesignSettings({ readOnly }: { readOnly: boolean }) {
   const project = useEditor((s) => s.project)!;
   const s = useEditor.getState();
   const hoopValue = HOOPS.some((h) => h.id === project.hoop.id) ? project.hoop.id : 'custom';
-  const b = project.backdrop;
   return (
     <section className="props" aria-labelledby="designh">
       <div className="panel-head inline">
@@ -555,38 +554,6 @@ function DesignSettings({ readOnly }: { readOnly: boolean }) {
           <NumberInput id="spm" label="Machine speed in stitches per minute" value={project.spm ?? 800} decimals={0} min={100} max={1500} unit="spm" onChange={(v) => s.setProjectFields({ spm: Math.round(v) })} />
         </div>
         <p className="note">{getFabric(project.fabricPreset).note}</p>
-        {b && (
-          <div className="backdrop-box">
-            <div className="panel-head inline tight">
-              <h3 className="label-caps">Artwork backdrop</h3>
-            </div>
-            <div className="prop-grid">
-              <ParamRow
-                label="Opacity"
-                value={Math.round(b.opacity * 100)}
-                min={5}
-                max={100}
-                step={5}
-                unit="%"
-                decimals={0}
-                numLabel="Backdrop opacity in percent"
-                onChange={(v) => s.updateBackdrop({ opacity: v / 100 }, 'backdrop-opacity')}
-              />
-            </div>
-            <div className="chips-row">
-              <button className="toggle-chip" aria-pressed={b.visible} onClick={() => s.updateBackdrop({ visible: !b.visible })}>
-                {b.visible ? 'Visible' : 'Hidden'}
-              </button>
-              <button className="toggle-chip" aria-pressed={b.locked} onClick={() => s.updateBackdrop({ locked: !b.locked })}>
-                {b.locked ? 'Locked' : 'Unlocked'}
-              </button>
-              <button className="btn small" onClick={() => s.setBackdrop(null)}>
-                Remove
-              </button>
-            </div>
-            <p className="note">Shown in the Artwork and Objects views. Unlock it to drag it into place.</p>
-          </div>
-        )}
       </div>
     </section>
   );

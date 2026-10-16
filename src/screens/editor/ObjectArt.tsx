@@ -163,7 +163,7 @@ export const ObjectArt = memo(function ObjectArt({
   return (
     <g data-type="tatami">
       <pattern id={`${pid}-tat`} patternUnits="userSpaceOnUse" width={spacing * 8} height={spacing} patternTransform={`rotate(${-r.angleDeg})`}>
-        <path d={`M0 ${spacing / 2}H${spacing * 8}`} stroke={LINE} strokeWidth={Math.max(1, spacing * 0.28)} strokeDasharray={`${spacing * 3} ${spacing * 0.6}`} />
+        <path d={`M0 ${spacing / 2}H${spacing * 8}`} stroke={LINE} strokeWidth={Math.max(1, spacing * 0.28)} />
       </pattern>
       <path d={d} fill={color} fillRule="evenodd" />
       <path d={d} fill={`url(#${pid}-tat)`} fillRule="evenodd" />

@@ -91,10 +91,14 @@ export function projectFromStitchFile(fileName: string, bytes: Uint8Array): Proj
   return { ...base, threads, objects, source: 'stitch-file', sourceFileName: fileName };
 }
 
-/** Decode an image to RGBA pixels, scaled so the longest side is at most `maxSide`. Browser only. */
-export async function imageToRaster(dataUrl: string, maxSide = 360): Promise<RasterImage> {
+/**
+ * Decode an image to RGBA pixels with its longest side at `side` pixels. Small images are
+ * scaled up (smoothly) so tracing works at high resolution; large ones are scaled down.
+ * Browser only.
+ */
+export async function imageToRaster(dataUrl: string, side = 1600): Promise<RasterImage> {
   const img = await loadImage(dataUrl);
-  const s = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  const s = side / Math.max(img.naturalWidth, img.naturalHeight);
   const w = Math.max(1, Math.round(img.naturalWidth * s));
   const h = Math.max(1, Math.round(img.naturalHeight * s));
   const c = document.createElement('canvas');
@@ -102,6 +106,8 @@ export async function imageToRaster(dataUrl: string, maxSide = 360): Promise<Ras
   c.height = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Canvas is not available');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, w, h);
   const data = ctx.getImageData(0, 0, w, h);
   return { width: w, height: h, data: data.data };

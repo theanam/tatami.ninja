@@ -45,11 +45,12 @@ export function InlineTextEditor({ o, v, color, onDone }: { o: StitchObject; v: 
   const done = useRef(false);
   const live = useLiveFont(spec);
 
+  // Focus and select once, on open. (Re-selecting when the font arrives would eat typing.)
   useEffect(() => {
     const el = inputRef.current;
     el?.focus();
     el?.select();
-  }, [live !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const finish = (revert: boolean) => {
     if (done.current) return;

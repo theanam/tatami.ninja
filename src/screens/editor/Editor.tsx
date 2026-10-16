@@ -7,8 +7,9 @@ import { importSvg } from '../../importers/svg';
 import { loadProject } from '../../storage/db';
 import { useEditor } from '../../store/editor';
 import { NotFound } from '../NotFound';
-import { backdropFromImage, persistNew, pickStitchFile, projectFromFile } from '../actions';
+import { persistNew, pickStitchFile, projectFromFile, setPendingTrace, takePendingTrace } from '../actions';
 import { AutoDigitizeDialog } from './AutoDigitizeDialog';
+import { BackdropPanel } from './BackdropPanel';
 import { Canvas } from './Canvas';
 import { ExportDialog } from './ExportDialog';
 import { useAutosave, useEditorKeyboard, useEngine } from './hooks';
@@ -65,6 +66,13 @@ function EditorShell() {
   const { cmd, stitchPos } = useSimulation(plan);
   const s = useEditor.getState();
 
+  // An image imported from Home opens straight in the tracer.
+  useEffect(() => {
+    const src = takePendingTrace(project.id);
+    if (src) useEditor.getState().openTracer(src);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Leave simulation if the plan disappears (e.g. everything hidden).
   useEffect(() => {
     if (simActive && !plan?.stitchCount) s.setSim({ active: false, playing: false });
@@ -74,6 +82,7 @@ function EditorShell() {
     async (file: File) => {
       const res = await projectFromFile(file);
       const newId = await persistNew(res.project);
+      if (res.traceSource) setPendingTrace(newId, res.traceSource);
       if (res.note) toast(res.note);
       navigate(`/design/${newId}`);
     },
@@ -92,10 +101,8 @@ function EditorShell() {
           if (st.view === 'artwork') st.setView('objects');
           toast(`Imported ${res.objects.length} ${res.objects.length === 1 ? 'object' : 'objects'} from ${file.name}`);
         } else if (kind === 'raster') {
-          st.setBackdrop(await backdropFromImage(await readAsDataUrl(file), p.hoop));
-          st.setView('artwork');
-          st.select([]);
-          toast('Image added as a tracing backdrop. Trace it with the drawing tools, or use Auto-digitize.');
+          // Images open the tracer (which can also place the image as a backdrop).
+          st.openTracer(await readAsDataUrl(file));
         } else if (kind === 'stitch' || kind === 'project') {
           await openAsNewProject(file);
         } else {
@@ -107,6 +114,15 @@ function EditorShell() {
     },
     [openAsNewProject],
   );
+
+  const pickSvg = async () => {
+    const f = await pickFile('.svg,image/svg+xml');
+    if (f) await importFile(f);
+  };
+  const pickImage = async () => {
+    const f = await pickFile('.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp');
+    if (f) useEditor.getState().openTracer(await readAsDataUrl(f));
+  };
 
   const pickImport = async () => {
     const f = await pickFile(ARTWORK_ACCEPT);
@@ -128,11 +144,11 @@ function EditorShell() {
         readOnly={readOnly}
         onExport={() => s.setDialog('export')}
         onImport={pickImport}
-        onAutoDigitize={() => s.setDialog('auto-digitize')}
+        onAddImage={pickImage}
         onDownloadProject={() => downloadProjectJson(project)}
       />
       <div className="editor-mid">
-        <ToolRail readOnly={readOnly} onAutoDigitize={() => s.setDialog('auto-digitize')} />
+        <ToolRail readOnly={readOnly} onImportSvg={pickSvg} onAddImage={pickImage} />
         <main className="editor-main">
           <div className="canvas-grid">
             <div className="ruler-corner" aria-hidden="true">
@@ -152,6 +168,7 @@ function EditorShell() {
         ) : (
           <aside aria-label="Sequence and properties" className="panel">
             <SequencePanel readOnly={readOnly} />
+            {project.backdrop && <BackdropPanel onTrace={() => s.openTracer(project.backdrop?.dataUrl ?? null)} onReplace={pickImage} />}
             <PropertiesPanel readOnly={readOnly} />
           </aside>
         )}
