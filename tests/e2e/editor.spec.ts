@@ -507,3 +507,28 @@ test('several fills selected together share one angle (panel and canvas knob)', 
   await page.locator('.seq-list .row').filter({ hasText: 'Badge fill' }).click();
   await expect(page.getByLabel('Angle in degrees')).toHaveValue('90');
 });
+
+test('the simulator closes itself when playback finishes', async ({ page }) => {
+  await openSample(page);
+  await page.getByRole('button', { name: 'Simulate' }).click();
+  const bar = page.getByRole('region', { name: 'Simulator controls' });
+  await expect(bar).toBeVisible();
+  await bar.getByRole('group', { name: 'Speed' }).getByRole('button', { name: '20×' }).click();
+  // Skip almost to the end, then let it play out.
+  const scrub = bar.getByLabel('Stitch position');
+  const total = Number(await scrub.getAttribute('max'));
+  await scrub.fill(String(total - 50));
+  await bar.getByRole('button', { name: 'Play' }).click();
+  await expect(bar).toHaveCount(0, { timeout: 15000 });
+  await expect(page.getByRole('button', { name: 'Simulate' })).toBeVisible();
+});
+
+test('scrubbing to the end does not close the simulator', async ({ page }) => {
+  await openSample(page);
+  await page.getByRole('button', { name: 'Simulate' }).click();
+  const bar = page.getByRole('region', { name: 'Simulator controls' });
+  const scrub = bar.getByLabel('Stitch position');
+  await scrub.fill(await scrub.getAttribute('max') as string);
+  await page.waitForTimeout(1500);
+  await expect(bar).toBeVisible();
+});

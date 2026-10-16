@@ -7,6 +7,8 @@ import { fmtClock, fmtInt, sewMinutes } from '../../model/units';
 import { useEditor } from '../../store/editor';
 
 export const SPEEDS = [1, 2, 5, 10, 20];
+/** Pause on the finished design before the simulator closes itself. */
+export const EXIT_DELAY_MS = 800;
 
 /** stitchAt[i] = number of STITCH commands in [0, i). */
 export function stitchPrefix(plan: StitchPlan): Int32Array {
@@ -34,6 +36,18 @@ export function useSimulation(plan: StitchPlan | null) {
   const prefix = useMemo(() => (plan ? stitchPrefix(plan) : null), [plan]);
   const total = plan?.stitchCount ?? 0;
   const raf = useRef(0);
+  const finished = useRef(false);
+  const atEnd = total > 0 && sim.position >= total;
+  // Playback ran to the end: show the finished design for a moment, then leave the simulator.
+  // Scrubbing or pressing play again in that moment keeps it open.
+  useEffect(() => {
+    if (!sim.active || sim.playing || !atEnd || !finished.current) return;
+    const t = window.setTimeout(() => {
+      finished.current = false;
+      useEditor.getState().setSim({ active: false, position: 0 });
+    }, EXIT_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [sim.active, sim.playing, atEnd]);
   useEffect(() => {
     if (!sim.active || !sim.playing || !prefix) return;
     let last = performance.now();
@@ -42,9 +56,11 @@ export function useSimulation(plan: StitchPlan | null) {
       const dt = (now - last) / 1000;
       last = now;
       pos = Math.min(total, pos + (spm / 60) * sim.speed * dt);
+      if (pos >= total) finished.current = true;
       useEditor.getState().setSim({ position: pos, playing: pos < total });
       if (pos < total) raf.current = requestAnimationFrame(tick);
     };
+    finished.current = false;
     raf.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf.current);
   }, [sim.active, sim.playing, sim.speed, prefix, total, spm]);
