@@ -29,7 +29,7 @@ export const TOOL_GROUPS: ToolDef[][] = [
     { id: 'applique', icon: 'applique', label: 'Appliqué', hint: 'Placement, tack-down and cover satin' },
   ],
   [
-    { id: 'auto-digitize', icon: 'upload', label: 'Import', hint: 'SVG artwork, or an image to trace', key: 'I' },
+    { id: 'auto-digitize', icon: 'image-add', label: 'Import', hint: 'SVG artwork, or an image to trace', key: 'I' },
     { id: 'measure', icon: 'measure', label: 'Measure', hint: 'Drag to measure a distance', key: 'M', readOnlyOk: true },
   ],
 ];

@@ -15,6 +15,7 @@ const EXTRA: Record<string, string> = {
   usb: '<rect x="8" y="9" width="8" height="12" rx="1.5"/><path d="M10 9V4h4v5M11 6h.01M13 6h.01"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/>',
+  'image-add': '<path d="M14 4H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2v-6"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5-9 9"/><path d="M19 2v6M16 5h6"/>',
   image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>',
   check: '<path d="M5 12l4 4 10-10"/>',
   'arrow-right': '<path d="M5 12h14M13 6l6 6-6 6"/>',
