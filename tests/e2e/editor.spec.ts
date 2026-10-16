@@ -492,3 +492,18 @@ test('warns about needle break risk, with what to do', async ({ page }) => {
   await expect(dialog.getByText('Needle break risk')).toBeVisible();
   await expect(dialog.getByText(/Space knots or ties further apart/)).toBeVisible();
 });
+
+test('several fills selected together share one angle (panel and canvas knob)', async ({ page }) => {
+  await openSample(page);
+  await page.locator('.seq-list .row').filter({ hasText: 'Badge fill' }).click();
+  await page.locator('.seq-list .row').filter({ hasText: 'Star' }).click({ modifiers: ['Shift'] });
+  await expect(page.getByText('2 objects')).toBeVisible();
+  await expect(page.locator('[data-handle="angle"]')).toHaveCount(1);
+  const angle = page.getByLabel('Angle in degrees');
+  await angle.fill('90');
+  await angle.press('Enter');
+  await page.locator('.seq-list .row').filter({ hasText: 'Star' }).click();
+  await expect(page.getByLabel('Angle in degrees')).toHaveValue('90');
+  await page.locator('.seq-list .row').filter({ hasText: 'Badge fill' }).click();
+  await expect(page.getByLabel('Angle in degrees')).toHaveValue('90');
+});

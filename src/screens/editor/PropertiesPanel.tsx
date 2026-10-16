@@ -530,6 +530,8 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
   const closedCount = objects.filter((o) => areasOf(o.geometry).length > 0 && o.type !== 'stitches').length;
   const editable = !readOnly && objects.every((o) => !o.locked);
   const allTypes = Array.from(new Set(objects.map((o) => o.type)));
+  const angles = new Set(objects.map((o) => resolveParams(o, project.fabricPreset).angleDeg));
+  const sharedAngle = angles.size === 1 ? [...angles][0] : null;
   return (
     <section className="props" aria-labelledby="proph">
       <div className="panel-head inline">
@@ -609,6 +611,21 @@ function MultiSelection({ objects, readOnly }: { objects: StitchObject[]; readOn
           </div>
         )}
         <ThreadRow ids={objects.map((o) => o.id)} value={objects.every((o) => o.thread === objects[0].thread) ? objects[0].thread : null} />
+        {objects.every((o) => o.type === 'tatami' && ANGLED_PATTERNS.includes(o.params.fillPattern ?? 'rows')) && (
+          <div className="prop-grid">
+            <ParamRow
+              label="Angle"
+              value={sharedAngle ?? resolveParams(objects[0], project.fabricPreset).angleDeg}
+              min={0}
+              max={180}
+              step={1}
+              unit="°"
+              decimals={0}
+              numLabel={sharedAngle === null ? 'Angle in degrees (mixed)' : 'Angle in degrees'}
+              onChange={(v) => s.setParams(objects.map((o) => o.id), { angleDeg: Math.round(v) }, 'angle')}
+            />
+          </div>
+        )}
         {closedCount >= 2 && (
           <div className="bool-row">
             <span className="prop-label">Combine shapes</span>

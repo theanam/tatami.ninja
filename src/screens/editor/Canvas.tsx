@@ -22,7 +22,6 @@ import {
   hitTest,
   makeView,
   normRect,
-  objectCenter,
   railPath,
   toScreen,
   toWorld,
@@ -39,7 +38,7 @@ type Drag =
   | { kind: 'pan'; start: P; pan: { x: number; y: number } }
   | { kind: 'move'; start: P; orig: StitchObject[]; b0: Bounds | null; lines: SnapLines | null }
   | { kind: 'marquee'; start: P; end: P; additive: boolean }
-  | { kind: 'angle'; id: string; center: P }
+  | { kind: 'angle'; ids: string[]; center: P }
   | { kind: 'scale'; anchor: P; startDist: number; orig: StitchObject[]; b0: Bounds | null; lines: SnapLines | null }
   | { kind: 'node'; id: string; key: string }
   | { kind: 'shape'; start: P; end: P }
@@ -368,6 +367,10 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const editable = !readOnly && !sim.active;
   const sel = useMemo(() => selectedObjects({ project, selection }), [project, selection]);
   const single = sel.length === 1 ? sel[0] : null;
+  // The fill-angle knob works on one tatami object or several at once (grouped or not).
+  const angleObjs = sel.length > 0 && sel.every((o) => o.type === 'tatami' && ANGLED_PATTERNS.includes(o.params.fillPattern ?? 'rows')) ? sel : null;
+  const angleBounds = angleObjs ? objectsBounds(angleObjs) : null;
+  const angleCenter: P | null = angleBounds ? [(angleBounds.minX + angleBounds.maxX) / 2, (angleBounds.minY + angleBounds.maxY) / 2] : null;
 
   const ensureActiveThread = () => useEditor.getState().ensureActiveThread();
 
@@ -466,8 +469,8 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
     const handle = (e.target as Element).closest('[data-handle]') as HTMLElement | SVGElement | null;
     if (handle && editable) {
       const h = handle.getAttribute('data-handle')!;
-      if (h === 'angle' && single) {
-        setDrag({ kind: 'angle', id: single.id, center: objectCenter(single)! });
+      if (h === 'angle' && angleObjs && angleCenter) {
+        setDrag({ kind: 'angle', ids: angleObjs.map((o) => o.id), center: angleCenter });
         return;
       }
       if (h.startsWith('corner:')) {
@@ -611,7 +614,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         setDrag({ ...drag, end: wp });
         return;
       case 'angle':
-        s.setParams([drag.id], { angleDeg: angleFromDrag(drag.center, wp) }, 'angle-drag');
+        s.setParams(drag.ids, { angleDeg: angleFromDrag(drag.center, wp) }, 'angle-drag');
         return;
       case 'scale': {
         // Uniform scale about the opposite corner, always from the original objects.
@@ -835,18 +838,17 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
         }
       }
     }
-    if (!dragging && single && (single.type === 'tatami' || single.type === 'contour') && tool === 'select') {
-      const c = objectCenter(single);
-      const ob = geometryBounds(single.geometry);
+    if (!dragging && angleObjs && tool === 'select') {
+      const c = angleCenter;
+      const ob = angleBounds;
       if (c && ob) {
         const [sx, sy] = toScreen(v, c);
         const R = Math.max(40, Math.min(ob.maxX - ob.minX, ob.maxY - ob.minY) * v.s * 0.42);
-        const ang = single.type === 'tatami' ? single.params.angleDeg ?? 45 : 0;
+        const ang = angleObjs[0].params.angleDeg ?? 45;
         const rad = (ang * Math.PI) / 180;
         const kx = sx + Math.cos(rad) * R;
         const ky = sy - Math.sin(rad) * R;
-        const pat = single.params.fillPattern ?? 'rows';
-        if (single.type === 'tatami' && ANGLED_PATTERNS.includes(pat)) {
+        {
           const ar = 18;
           overlays.push(
             <g key="angle" className="angle-handle">
