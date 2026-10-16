@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openSample } from './helpers';
+import { chooseFile, makePng, openSample } from './helpers';
 
 const view = (page: Page) => page.getByRole('group', { name: 'View' });
 
@@ -19,6 +19,29 @@ async function rectDesign(page: Page) {
 }
 
 test.describe('canvas behaviour', () => {
+  test('the empty-canvas card goes away for good once you import from it', async ({ page }) => {
+    await page.goto('/#/new');
+    await page.getByRole('button', { name: 'Create design' }).click();
+    const card = page.getByText('Start with your artwork');
+    await expect(card).toBeVisible();
+    const png = makePng(40, 40, (x, y) => (x > 10 && x < 30 && y > 10 && y < 30 ? [200, 30, 40] : [255, 255, 255]));
+    await chooseFile(page, () => page.getByRole('button', { name: 'Import artwork…' }).click(), { name: 'logo.png', mimeType: 'image/png', buffer: png });
+    await expect(page.getByText('Artwork backdrop')).toBeVisible();
+    await expect(card).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator('.canvas-wrap')).toBeVisible();
+    await expect(card).toHaveCount(0);
+  });
+
+  test('picking any tool dismisses the empty-canvas card, even after going back to Select', async ({ page }) => {
+    await page.goto('/#/new');
+    await page.getByRole('button', { name: 'Create design' }).click();
+    await expect(page.getByText('Start with your artwork')).toBeVisible();
+    await page.keyboard.press('p');
+    await page.keyboard.press('v');
+    await expect(page.getByText('Start with your artwork')).toHaveCount(0);
+  });
+
   test('designs always open in the Artwork view', async ({ page }) => {
     await openSample(page);
     await expect(view(page).getByRole('button', { name: 'Artwork' })).toHaveAttribute('aria-pressed', 'true');

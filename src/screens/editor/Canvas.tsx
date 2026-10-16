@@ -205,11 +205,12 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const realistic = view === 'realistic' || sim.active;
   const showStitches = view === 'stitches' || realistic;
 
-  // Reset drafts when the tool changes.
+  // Reset drafts when the tool changes. Picking any tool also dismisses the empty-canvas card.
   useEffect(() => {
     setDraft([]);
     if (tool !== 'measure') setMeasure(null);
-  }, [tool]);
+    if (tool !== 'select') chooseBlank();
+  }, [tool]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const editingTextId = useEditor((s) => s.editingTextId);
   const editingIndex = editingTextId ? project.objects.findIndex((o) => o.id === editingTextId) : -1;
@@ -740,6 +741,7 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDropping(false);
+    chooseBlank();
     const f = e.dataTransfer.files?.[0];
     if (f && !readOnly) onImportFile(f);
   };
@@ -996,7 +998,8 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
   const hh = project.hoop.height / 2;
   const innerTL = toScreen(v, [-hw, -hh]);
   const innerBR = toScreen(v, [hw, hh]);
-  const empty = project.objects.length === 0 && project.source !== 'stitch-file' && !startBlank;
+  // The card is a first-run prompt only: any interaction, a backdrop or an object hides it for good.
+  const empty = project.objects.length === 0 && !project.backdrop && project.source !== 'stitch-file' && !startBlank;
   const picking = useEditor((st) => st.pickPoint);
   const cursor =
     picking ? 'crosshair' : drag?.kind === 'pan' || spaceDown ? 'grabbing' : tool === 'select' || tool === 'node' ? 'default' : tool === 'lettering' ? 'text' : 'crosshair';
@@ -1169,10 +1172,16 @@ export function Canvas({ readOnly, onImportFile, onImportClick, onOpenStitchFile
           </div>
           <h3>Start with your artwork</h3>
           <p>Drop an SVG to turn each shape into stitches, or a PNG / JPG to trace over.</p>
-          <button className="btn pri block dz-btn" onClick={onImportClick}>
+          <button className="btn pri block dz-btn" onClick={() => {
+              chooseBlank();
+              onImportClick();
+            }}>
             Import artwork…
           </button>
-          <button className="btn block dz-btn" onClick={onOpenStitchFile}>
+          <button className="btn block dz-btn" onClick={() => {
+              chooseBlank();
+              onOpenStitchFile();
+            }}>
             Open a DST or PES file
           </button>
           <button className="btn block dz-btn" onClick={chooseBlank}>
