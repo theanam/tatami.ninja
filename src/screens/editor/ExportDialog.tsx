@@ -1,17 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { Dialog, toast } from '../../components/ui';
+import { Dialog, Select, toast } from '../../components/ui';
+import { generatePlan } from '../../engine/plan';
+import { zip } from '../../export/zip';
+import { sectionProject, splitDesign } from '../../model/split';
 import { saveDesign } from '../../storage/projectFile';
 import { appliqueCutSvg } from '../../export/cutFile';
 import { colorBlockStats, colorSheetPdf, downloadBytes, encodeFormat, fileBaseName } from '../../export/export';
 import { FORMATS } from '../../formats';
-import type { FileFormat } from '../../model/types';
+import type { FileFormat, Project } from '../../model/types';
 import { fmtInt, fmtLen, sewMinutes } from '../../model/units';
-import { getMachine, hoopLabel, THREAD_CHARTS } from '../../presets';
+import { FLAT_HOOPS, getMachine, hoopLabel, THREAD_CHARTS } from '../../presets';
 import { backgroundEngine } from '../../engine/client';
 import { useEditor } from '../../store/editor';
 
 const ORDER: FileFormat[] = ['PES', 'DST', 'JEF', 'EXP', 'VP3', 'XXX', 'HUS'];
+
+/** Start with splitting when the design is bigger than its hoop. */
+function outOfHoopInit(project: Project): boolean {
+  return useEditor.getState().warnings.some((w) => w.kind === 'out-of-hoop') && project.objects.length > 0;
+}
 
 export function ExportDialog({ onClose }: { onClose(): void }) {
   const project = useEditor((s) => s.project)!;
@@ -25,6 +33,9 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const hasApplique = project.objects.some((o) => o.visible && o.type === 'applique');
   const [cut, setCut] = useState(true);
   const [thumb, setThumb] = useState<string | undefined>();
+  const [splitHoop, setSplitHoop] = useState<string>(outOfHoopInit(project) ? FLAT_HOOPS[FLAT_HOOPS.length - 1].id : 'none');
+  const hoopFor = FLAT_HOOPS.find((x) => x.id === splitHoop);
+  const split = useMemo(() => (hoopFor ? splitDesign(project, hoopFor) : null), [project, hoopFor]);
   useEffect(() => {
     let alive = true;
     void backgroundEngine()
@@ -48,7 +59,17 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const download = async () => {
     try {
       const base = name.trim() || 'design';
-      downloadBytes(encodeFormat(format, project, plan), `${base}.${info.ext}`);
+      if (split && hoopFor && split.sections.length > 1) {
+        const n = split.sections.length;
+        const files = split.sections.map((sec) => {
+          const sp = sectionProject(project, split, sec, hoopFor);
+          return { name: `${base}-${sec.index + 1}-of-${n}.${info.ext}`, data: encodeFormat(format, sp, generatePlan(sp)) };
+        });
+        downloadBytes(zip(files), `${base}-${n}-hoopings.zip`, 'application/zip');
+      } else if (split && hoopFor) {
+        const sp = sectionProject(project, split, split.sections[0], hoopFor);
+        downloadBytes(encodeFormat(format, sp, generatePlan(sp)), `${base}.${info.ext}`);
+      } else downloadBytes(encodeFormat(format, project, plan), `${base}.${info.ext}`);
       if (sheet) downloadBytes(await colorSheetPdf(project, plan, thumb), `${base}-color-sheet.pdf`, 'application/pdf');
       if (hasApplique && cut) {
         const svg = appliqueCutSvg(project.objects.filter((o) => o.visible));
@@ -101,7 +122,27 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
               </button>
             ))}
           </div>
-          {outOfHoop ? (
+          <div className="prop-grid two ex-split">
+            <label htmlFor="hooping" className="prop-label">
+              Hooping
+            </label>
+            <Select
+              id="hooping"
+              value={splitHoop}
+              onChange={setSplitHoop}
+              options={[
+                { value: 'none', label: `One hooping (${hoopLabel(project.hoop)} mm)` },
+                ...FLAT_HOOPS.map((x) => ({ value: x.id, label: `Split for ${hoopLabel(x)} mm` })),
+              ]}
+            />
+          </div>
+          {split && (
+            <p className="meta split-note" role="status">
+              {split.sections.length === 1 ? 'Fits in one hooping.' : `${split.sections.length} hoopings (${split.cols} × ${split.rows}), with alignment marks. Downloads as a zip.`}
+              {split.oversize.length > 0 && ` ${split.oversize.length} object${split.oversize.length === 1 ? ' is' : 's are'} too big for one hooping.`}
+            </p>
+          )}
+          {outOfHoop && !split ? (
             <div className="compat bad" role="alert">
               <Icon name="error" />
               <div>

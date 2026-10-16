@@ -337,3 +337,5 @@
 .motif.on { border-color: var(--sb-accent, #3B6CF0); color: var(--sb-text); box-shadow: inset 0 0 0 1px var(--sb-accent, #3B6CF0); }
 .select-with-btn { display: flex; gap: 4px; align-items: center; min-width: 0; }
 .select-with-btn > :first-child { flex: 1; min-width: 0; }
+.ex-split { margin: 10px 0 4px; }
+.split-note { margin: 0 0 8px; }

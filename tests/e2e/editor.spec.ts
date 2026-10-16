@@ -455,3 +455,18 @@ test('free-standing lace: fabric choice and a warning for loose parts', async ({
   await page.getByRole('button', { name: /\d+ warnings?/ }).click();
   await expect(page.getByRole('dialog').getByText('Lace not connected')).toBeVisible();
 });
+
+test('export can split a large design into hoopings (zip with alignment marks)', async ({ page }) => {
+  await openSample(page);
+  await page.keyboard.press('ControlOrMeta+a');
+  const width = page.getByLabel('Selection width in mm');
+  await width.fill('150');
+  await width.press('Enter');
+  await page.getByRole('button', { name: 'Export' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export design' });
+  await dialog.getByLabel('Hooping').selectOption('100x100');
+  await expect(dialog.getByText(/4 hoopings \(2 × 2\), with alignment marks/)).toBeVisible();
+  const dl = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: /^Download PES/ }).click();
+  expect((await dl).suggestedFilename()).toBe('harbor-club-badge-4-hoopings.zip');
+});
