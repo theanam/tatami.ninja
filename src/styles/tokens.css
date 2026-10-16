@@ -1,0 +1,98 @@
+/* tatami.ninja design tokens — dark theme (the only theme designed so far).
+   Mirrors tokens.json. Add a [data-theme="light"] block when light mode is designed. */
+:root {
+  /* Surfaces */
+  --sb-bg-app: #1B1C1F;
+  --sb-bg-page: #18191C;
+  --sb-bg-canvas: #141517;
+  --sb-bg-canvas-dot: #25262A;
+  --sb-bg-panel: #1F2023;
+  --sb-bg-raised: #26272B;
+  --sb-bg-raised-hover: #2E2F34;
+  --sb-bg-input: #1A1B1E;
+  --sb-bg-segment-active: #3A3B41;
+  --sb-bg-selected: #253154;
+  --sb-bg-selected-tool: #2A3557;
+
+  /* Borders */
+  --sb-border-subtle: #2E2F34;
+  --sb-border: #34353A;
+  --sb-border-strong: #3A3B41;
+  --sb-border-hover: #4A4B52;
+
+  /* Text */
+  --sb-text: #ECECEE;
+  --sb-text-strong: #F2F2F4;
+  --sb-text-secondary: #C9CAD0;
+  --sb-text-muted: #A1A2A8;
+  --sb-text-faint: #8A8B92;
+  --sb-icon-disabled: #6E6F76;
+  --sb-text-on-accent: #FFFFFF;
+  --sb-text-on-selected: #DCE6FF;
+
+  /* Accent (one color for primary actions) */
+  --sb-accent: #3B6CF0;
+  --sb-accent-hover: #3360DA;
+  --sb-handle: #6C97FF;
+  --sb-handle-light: #9DB8FF;
+  --sb-link: #8FB0FF;
+  --sb-link-hover: #B8CDFF;
+
+  /* Status */
+  --sb-success: #7FD9A0;
+  --sb-success-bg: #1F2B24;
+  --sb-success-border: #2D4A38;
+  --sb-warning: #F5B341;
+  --sb-error: #F04D4D;
+  --sb-error-text: #FFB4B4;
+  --sb-error-icon: #FF7A7A;
+  --sb-error-bg: #3A1F22;
+
+  /* Hoop */
+  --sb-hoop-frame: #2C2D32;
+  --sb-hoop-stroke: #4A4B52;
+  --sb-hoop-objects-bg: #1D1E22;
+  --sb-hoop-grid: #2A2B30;
+
+  /* Type */
+  --sb-font-sans: 'Geist', system-ui, sans-serif;
+  --sb-font-mono: 'Geist Mono', ui-monospace, monospace;
+  --sb-fs-label: 11px;
+  --sb-fs-sm: 12px;
+  --sb-fs-base: 13px;
+  --sb-fs-page: 14px;
+
+  /* Radius */
+  --sb-r-xs: 4px;
+  --sb-r-sm: 6px;
+  --sb-r-md: 8px;
+  --sb-r-lg: 10px;
+  --sb-r-xl: 12px;
+  --sb-r-2xl: 16px;
+
+  /* Layout */
+  --sb-topbar-h: 48px;
+  --sb-statusbar-h: 32px;
+  --sb-toolrail-w: 52px;
+  --sb-panel-w: 320px;
+
+  /* Extra surfaces used by the mockups (kept as tokens, not hard-coded in components) */
+  --sb-bg-hover: #2A2B2F;
+  --sb-bg-card: #202125;
+  --sb-bg-button-page: #232428;
+  --sb-bg-button-page-hover: #2C2D32;
+  --sb-bg-strip: #1E1F22;
+  --sb-bg-wizard-selected: #1F2740;
+  --sb-border-page: #2A2B30;
+  --sb-text-row: #E4E4E7;
+  --sb-ruler-major: #55565D;
+  --sb-ruler-minor: #3A3B41;
+  --sb-success-pill: #9FE0B5;
+  --sb-overlay: rgba(8, 9, 11, .68);
+  --sb-chip-accent-bg: #1F2740;
+
+  /* Elevation */
+  --sb-shadow-popover: 0 16px 40px rgba(0,0,0,.5);
+  --sb-shadow-dialog: 0 24px 60px rgba(0,0,0,.55);
+  --sb-shadow-floating: 0 12px 32px rgba(0,0,0,.45);
+}

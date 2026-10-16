@@ -1,0 +1,25 @@
+/// <reference lib="webworker" />
+import type { Project } from '../model/types';
+import { generatePlan } from './plan';
+import { checkWarnings } from './warnings';
+
+export interface EngineRequest {
+  id: number;
+  project: Project;
+}
+
+self.onmessage = (e: MessageEvent<EngineRequest>) => {
+  const { id, project } = e.data;
+  try {
+    const plan = generatePlan(project);
+    const warnings = checkWarnings(project, plan);
+    (self as unknown as Worker).postMessage({ id, plan, warnings }, [
+      plan.xs.buffer,
+      plan.ys.buffer,
+      plan.cmds.buffer,
+      plan.obj.buffer,
+    ]);
+  } catch (err) {
+    (self as unknown as Worker).postMessage({ id, error: err instanceof Error ? err.message : String(err) });
+  }
+};

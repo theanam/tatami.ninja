@@ -1,0 +1,69 @@
+{
+  "$comment": "Proposed native project format: objects, not stitches. All lengths in 0.1 mm units; origin = hoop center, +y down. This is the sample design shown in the mockups. Proposed shape only; adjust freely.",
+  "format": "tatami-project",
+  "version": 1,
+  "name": "Harbor Club Badge",
+  "units": "mm",
+  "machine": { "brand": "brother", "defaultFormat": "PES" },
+  "hoop": { "id": "130x180", "width": 1300, "height": 1800 },
+  "fabricPreset": "cotton-twill",
+  "threadChart": "madeira",
+  "threads": [
+    { "id": "t1", "name": "Navy", "hex": "#24357A", "chartCode": null },
+    { "id": "t2", "name": "Gold", "hex": "#D4A43A", "chartCode": null }
+  ],
+  "objects": [
+    {
+      "id": "o1",
+      "name": "Badge fill",
+      "type": "tatami",
+      "thread": "t1",
+      "visible": true,
+      "locked": false,
+      "geometry": { "kind": "circle", "cx": 0, "cy": 0, "r": 352 },
+      "params": { "angleDeg": 45, "rowSpacing": 4, "stitchLength": 35 },
+      "advanced": { "underlay": "inherit", "pullComp": "inherit", "tieIn": true, "tieOff": true, "trimBefore": false, "trimAfter": true }
+    },
+    {
+      "id": "o2",
+      "name": "Inner ring",
+      "type": "run",
+      "thread": "t2",
+      "visible": true,
+      "locked": false,
+      "geometry": { "kind": "circle", "cx": 0, "cy": 0, "r": 310 },
+      "params": { "stitchLength": 24, "repeats": 1 },
+      "advanced": { "underlay": "none", "tieIn": true, "tieOff": true, "trimBefore": false, "trimAfter": false }
+    },
+    {
+      "id": "o3",
+      "name": "Star",
+      "type": "tatami",
+      "thread": "t2",
+      "visible": true,
+      "locked": false,
+      "geometry": {
+        "kind": "polygon",
+        "points": [[0,-160],[40,-55],[152,-49],[65,21],[94,129],[0,68],[-94,129],[-65,21],[-152,-49],[-40,-55]]
+      },
+      "params": { "angleDeg": -30, "rowSpacing": 4, "stitchLength": 30 },
+      "advanced": { "underlay": "inherit", "pullComp": "inherit", "tieIn": true, "tieOff": true, "trimBefore": false, "trimAfter": true }
+    },
+    {
+      "id": "o4",
+      "name": "Border",
+      "type": "satin",
+      "thread": "t2",
+      "visible": true,
+      "locked": false,
+      "geometry": {
+        "kind": "satin",
+        "railA": { "kind": "circle", "cx": 0, "cy": 0, "r": 350 },
+        "railB": { "kind": "circle", "cx": 0, "cy": 0, "r": 412 },
+        "rungs": "auto"
+      },
+      "params": { "density": 4, "shortStitches": true, "splitAbove": 80 },
+      "advanced": { "underlay": "edge-run+zigzag", "pullComp": 3, "tieIn": true, "tieOff": true, "trimBefore": false, "trimAfter": true }
+    }
+  ]
+}

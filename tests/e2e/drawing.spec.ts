@@ -1,0 +1,113 @@
+import { expect, test, type Page } from '@playwright/test';
+
+async function newEmptyDesign(page: Page) {
+  await page.goto('/#/new');
+  await page.getByRole('button', { name: 'Create design' }).click();
+  await expect(page.getByText('Start with your artwork')).toBeVisible();
+}
+
+/** Canvas center in page coordinates (the hoop center). */
+async function canvasCenter(page: Page) {
+  const box = (await page.locator('.overlay-layer').boundingBox())!;
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test.describe('drawing tools', () => {
+  test('pen draws a closed fill', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('p');
+    const c = await canvasCenter(page);
+    await page.mouse.click(c.x - 60, c.y - 40);
+    await page.mouse.click(c.x + 60, c.y - 40);
+    await page.mouse.click(c.x, c.y + 60);
+    await page.mouse.click(c.x - 60, c.y - 40); // close on the first point
+    await expect(page.locator('.row', { hasText: 'Fill 1' })).toBeVisible();
+    await expect(page.locator('.statusbar')).toContainText(/[1-9][\d,]* stitches/);
+  });
+
+  test('run tool draws an open line finished with Enter', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('r');
+    const c = await canvasCenter(page);
+    await page.mouse.click(c.x - 80, c.y);
+    await page.mouse.click(c.x, c.y - 30);
+    await page.mouse.click(c.x + 80, c.y);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.row', { hasText: 'Run' })).toBeVisible();
+  });
+
+  test('satin tool builds a column from rail clicks', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('s');
+    const c = await canvasCenter(page);
+    for (const [x, y] of [[-80, -10], [-80, 10], [0, -14], [0, 14], [80, -10], [80, 10]]) await page.mouse.click(c.x + x, c.y + y);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.row', { hasText: 'Satin 1' })).toBeVisible();
+    await expect(page.getByLabel('Satin width in millimetres')).toBeVisible();
+  });
+
+  test('shapes tool drags a rectangle; select tool moves and nudges it', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('u');
+    const c = await canvasCenter(page);
+    await page.mouse.move(c.x - 50, c.y - 50);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 50, c.y + 30, { steps: 5 });
+    await page.mouse.up();
+    await expect(page.locator('.row', { hasText: 'Rectangle 1' })).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ControlOrMeta+d');
+    await expect(page.locator('.row', { hasText: 'Rectangle 1 copy' })).toBeVisible();
+    await page.keyboard.press('Delete');
+    await expect(page.locator('.row', { hasText: 'copy' })).toHaveCount(0);
+  });
+
+  test('lettering tool adds editable text', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('t');
+    const c = await canvasCenter(page);
+    await page.mouse.click(c.x, c.y);
+    await expect(page.locator('.row', { hasText: '“Text”' })).toBeVisible();
+    await page.getByLabel('Text', { exact: true }).fill('Hello');
+    await expect(page.locator('.row', { hasText: '“Hello”' })).toBeVisible();
+    await page.getByLabel('Font').selectOption('pacifico');
+    await page.getByRole('group', { name: 'Baseline' }).getByRole('button', { name: 'Arc up' }).click();
+    await expect(page.getByLabel('Arc radius in millimetres')).toBeVisible();
+    const h = page.getByLabel('Letter height in millimetres');
+    await h.fill('4');
+    await h.press('Enter');
+    await page.getByRole('button', { name: /\d+ warnings?/ }).click();
+    await expect(page.getByRole('dialog').getByText('Lettering too small')).toBeVisible();
+  });
+
+  test('node tool moves a vertex', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('u');
+    const c = await canvasCenter(page);
+    await page.mouse.move(c.x - 50, c.y - 50);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 50, c.y + 50, { steps: 4 });
+    await page.mouse.up();
+    await page.keyboard.press('a');
+    const handles = page.locator('[data-handle^="node:"]');
+    await expect(handles).toHaveCount(4);
+    const box = (await handles.first().boundingBox())!;
+    await page.mouse.move(box.x + 4, box.y + 4);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 40, box.y - 40, { steps: 4 });
+    await page.mouse.up();
+    const after = (await handles.first().boundingBox())!;
+    expect(after.x).toBeLessThan(box.x - 30);
+  });
+
+  test('measure tool shows a distance', async ({ page }) => {
+    await newEmptyDesign(page);
+    await page.keyboard.press('m');
+    const c = await canvasCenter(page);
+    await page.mouse.move(c.x - 50, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 50, c.y, { steps: 3 });
+    await page.mouse.up();
+    await expect(page.locator('.overlay-layer text', { hasText: / mm$/ })).toBeVisible();
+  });
+});
