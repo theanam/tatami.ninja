@@ -139,7 +139,7 @@ test.describe('home and pages', () => {
     await page.goto('/');
     await page.locator('.card-wrap').first().hover();
     await page.getByRole('button', { name: 'Duplicate Harbor Club Badge' }).click();
-    await expect(page.getByText('Harbor Club Badge copy')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Harbor Club Badge copy/ })).toBeVisible();
     page.once('dialog', (d) => d.accept());
     await page.locator('.card-wrap').filter({ hasText: 'copy' }).hover();
     await page.getByRole('button', { name: 'Delete Harbor Club Badge copy' }).click();

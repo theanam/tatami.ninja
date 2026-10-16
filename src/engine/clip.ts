@@ -37,9 +37,9 @@ function treeToAreas(tree: InstanceType<typeof ClipperLib.PolyTree>): Area[] {
 }
 
 /** Grow (delta > 0) or shrink (delta < 0) areas. Uses even-odd semantics on input rings. */
-export function offsetAreas(areas: Area[], delta: number, round = true): Area[] {
+export function offsetAreas(areas: Area[], delta: number, round = true, arcTolerance = 0.25): Area[] {
   const normalized = normalizeAreas(areas);
-  const co = new ClipperLib.ClipperOffset(2, 0.25 * S);
+  const co = new ClipperLib.ClipperOffset(2, arcTolerance * S);
   co.AddPaths(
     areasToPaths(normalized),
     round ? ClipperLib.JoinType.jtRound : ClipperLib.JoinType.jtMiter,

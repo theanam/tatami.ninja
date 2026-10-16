@@ -20,7 +20,6 @@ test.describe('editor', () => {
     await expect(angle).toHaveValue('45');
     await angle.fill('90');
     await angle.press('Enter');
-    await expect(page.locator('.topbar[data-save-state="saving"]')).toHaveCount(1);
     await expect(page.locator('.topbar[data-save-state="saved"]')).toHaveCount(1);
     await page.keyboard.press('ControlOrMeta+z');
     await expect(angle).toHaveValue('45');

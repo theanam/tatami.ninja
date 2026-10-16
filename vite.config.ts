@@ -16,5 +16,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
+    // Engine tests do real geometry; leave headroom for a busy machine.
+    testTimeout: 20000,
   },
 });

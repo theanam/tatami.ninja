@@ -182,9 +182,13 @@ export function echoLines(areas: Area[], spacing: number): P[][] {
   const ringsOf = (as: Area[]) => as.flatMap((a) => [a.outer, ...a.holes]).map((r) => [...r, r[0]]);
   if (holes.length) {
     for (let k = 1; k * spacing < b.r * 2 && k < 400; k++) {
-      const rings = ringsOf(offsetAreas(holes, k * spacing));
+      // A coarser arc tolerance keeps big offsets light (0.5 mm is invisible at this scale).
+      const grown = offsetAreas(holes, k * spacing, true, Math.min(5, 0.5 + k * 0.1));
+      const rings = ringsOf(grown);
       if (!rings.length) break;
       out.push(...rings);
+      // Once the echo surrounds the whole shape, further rings would be clipped away.
+      if (grown.length === 1 && grown[0].holes.length === 0 && containsBox(grown[0].outer, b)) break;
     }
   } else {
     let cur = offsetAreas(areas, -spacing / 2);
@@ -194,6 +198,16 @@ export function echoLines(areas: Area[], spacing: number): P[][] {
     }
   }
   return out;
+}
+
+function containsBox(ring: P[], b: { minX: number; minY: number; maxX: number; maxY: number }): boolean {
+  const corners: P[] = [
+    [b.minX, b.minY],
+    [b.maxX, b.minY],
+    [b.maxX, b.maxY],
+    [b.minX, b.maxY],
+  ];
+  return corners.every((c) => pointInArea(c, { outer: ring, holes: [] }));
 }
 
 function lineLength(l: P[]) {
