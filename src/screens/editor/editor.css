@@ -1,7 +1,12 @@
 .editor { height: 100vh; min-height: 560px; display: flex; flex-direction: column; background: var(--sb-bg-app); color: var(--sb-text); font-size: var(--sb-fs-base); overflow: hidden; }
 
 /* Top bar */
-.topbar { min-height: var(--sb-topbar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--sb-border-subtle); flex-wrap: wrap; }
+.topbar { min-height: var(--sb-topbar-h); flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--sb-border-subtle); }
+/* Fixed three-column layout: the view switch stays centered and nothing shifts as labels change. */
+.tb-left, .tb-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tb-left { overflow: hidden; }
+.tb-right { justify-content: flex-end; }
+.sim-btn { min-width: 112px; justify-content: center; }
 .topbar-brand { display: flex; align-items: center; gap: 8px; color: var(--sb-text); text-decoration: none; font-weight: 600; font-size: var(--sb-fs-page); }
 .topbar-brand:hover { color: var(--sb-text); }
 .vdivider { width: 1px; height: 20px; background: var(--sb-border); }
@@ -9,7 +14,6 @@
 .name-btn { border: 0; background: none; padding: 2px 4px; border-radius: var(--sb-r-xs); font-weight: 500; cursor: text; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name-btn:hover { background: var(--sb-bg-raised); }
 .name-input { height: 26px; width: 220px; }
-.save-state { color: var(--sb-text-faint); white-space: nowrap; }
 .undo-redo { display: flex; gap: 2px; }
 .gh-link { color: var(--sb-text-muted); text-decoration: none; }
 .menu-wrap { position: relative; }

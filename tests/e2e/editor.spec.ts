@@ -20,8 +20,8 @@ test.describe('editor', () => {
     await expect(angle).toHaveValue('45');
     await angle.fill('90');
     await angle.press('Enter');
-    await expect(page.getByText('Saving…')).toBeVisible();
-    await expect(page.getByText('Saved in this browser')).toBeVisible();
+    await expect(page.locator('.topbar[data-save-state="saving"]')).toHaveCount(1);
+    await expect(page.locator('.topbar[data-save-state="saved"]')).toHaveCount(1);
     await page.keyboard.press('ControlOrMeta+z');
     await expect(angle).toHaveValue('45');
     await page.keyboard.press('ControlOrMeta+Shift+z');
@@ -56,7 +56,7 @@ test.describe('editor', () => {
     await page.getByRole('button', { name: 'Harbor Club Badge' }).click();
     await page.getByLabel('Design name').fill('Harbor Badge v2');
     await page.getByLabel('Design name').press('Enter');
-    await expect(page.getByText('Saved in this browser')).toBeVisible();
+    await expect(page.locator('.topbar[data-save-state="saved"]')).toHaveCount(1);
     await page.reload();
     await expect(page.getByText('Gold star')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Harbor Badge v2' })).toBeVisible();

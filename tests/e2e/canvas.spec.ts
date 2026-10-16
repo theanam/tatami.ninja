@@ -72,7 +72,7 @@ test.describe('canvas behaviour', () => {
 
   test('dragging commits on release as a single undo step', async ({ page }) => {
     const c = await rectDesign(page);
-    await expect(page.getByText('Saved in this browser')).toBeVisible();
+    await expect(page.locator('.topbar[data-save-state="saved"]')).toHaveCount(1);
     const box = (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
@@ -80,7 +80,7 @@ test.describe('canvas behaviour', () => {
     // Mid-drag the box follows the pointer but the document is untouched (nothing to save).
     const mid = (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
     expect(mid.x - box.x).toBeGreaterThan(50);
-    await expect(page.getByText('Saved in this browser')).toBeVisible();
+    await expect(page.locator('.topbar[data-save-state="saved"]')).toHaveCount(1);
     await page.mouse.up();
     const after = (await page.locator('.overlay-layer rect.selbox').boundingBox())!;
     expect(Math.round(after.x - box.x)).toBeGreaterThan(50);
