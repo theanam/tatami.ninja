@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { Toasts, TooltipLayer } from './components/ui';
+import { FirstRunTour } from './components/tour/Tour';
 import { Home } from './screens/Home';
 import { Wizard } from './screens/Wizard';
 import { HelpPage, AboutPage } from './screens/InfoPages';
@@ -22,6 +23,7 @@ export function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      <FirstRunTour />
       <TooltipLayer />
       <Toasts />
     </HashRouter>

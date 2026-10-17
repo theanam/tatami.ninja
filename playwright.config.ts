@@ -12,8 +12,10 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     acceptDownloads: true,
     trace: 'retain-on-failure',
+    // The first-run tour is tested on its own; everywhere else it has already been seen.
+    storageState: 'tests/e2e/storage.json',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, storageState: 'tests/e2e/storage.json' } }],
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5182/',

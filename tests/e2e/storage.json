@@ -1,0 +1,4 @@
+{
+  "cookies": [],
+  "origins": [{ "origin": "http://localhost:5182", "localStorage": [{ "name": "tatami.tourSeen", "value": "1" }] }]
+}

@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { GithubMark, Icon } from '../components/Icon';
 import { PageFooter, PageHeader } from '../components/PageChrome';
+import { openTour } from '../components/tour/tourState';
 import { CONTACT_EMAIL, ISSUES_URL, NEW_ISSUE_URL, REPO_URL } from '../links';
 
 declare const __APP_VERSION__: string;
@@ -85,6 +86,11 @@ const SHORTCUTS: [string, string][] = [
 export function HelpPage() {
   return (
     <InfoLayout title="Help" lead="Everything you need to go from artwork to a stitch file your machine can sew.">
+      <section className="info-section">
+        <button className="btn page" onClick={openTour}>
+          <Icon name="play" small /> Take the tour
+        </button>
+      </section>
       <section className="info-section">
         <h2>Quick start: logo to stitch file</h2>
         <ol>
